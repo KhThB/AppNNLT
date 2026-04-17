@@ -1,0 +1,101 @@
+﻿@page "/"
+@page "/dashboard"
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject IJSRuntime JS
+<MudText Typo="Typo.h4" GutterBottom="true">Dashboard Quản Trị</MudText>
+
+@if (stats == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Tổng Doanh Thu</MudText>
+                <MudText Typo="Typo.h5" Color="Color.Success">@stats.TotalRevenue.ToString("N0") VNĐ</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Lượt Quét QR</MudText>
+                <MudText Typo="Typo.h5">@stats.TotalQRScans</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Lượt Nghe TTS</MudText>
+                <MudText Typo="Typo.h5">@stats.TotalTTSPlays</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Class="mt-4">
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" GutterBottom="true">Lượt quét QR (7 ngày qua)</MudText>
+                <MudChart ChartType="ChartType.Bar" 
+                          ChartSeries="@Series" 
+                          XAxisLabels="@stats.ChartLabels" 
+                          Width="100%" Height="300px" />
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Elevation="2" Class="pa-4">
+                <MudText Typo="Typo.h6" GutterBottom="true">Mật độ Người dùng (Heatmap)</MudText>
+                <div id="map" style="height: 300px; width: 100%; background-color: #f0f0f0; display:flex; align-items:center; justify-content:center;">
+                    <MudText Typo="Typo.body2" Color="Color.Dark">Bản đồ Leaflet sẽ hiển thị ở đây (Xem bước tiếp theo)</MudText>
+                </div>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Chỉ gọi JS vẽ bản đồ 1 lần duy nhất khi trang vừa load xong giao diện HTML
+        if (firstRender && stats != null)
+        {
+            // Dữ liệu mẫu (Mock data) mảng tọa độ người dùng quét mã QR
+            // Cấu trúc bắt buộc của Leaflet: [Vĩ độ, Kinh độ, Cường độ nhiệt (0.1 -> 1.0)]
+            var heatmapPoints = new object[]
+            {
+                new double[] { 10.7725, 106.6980, 0.9 }, // Rất đông: Chợ Bến Thành
+                new double[] { 10.7730, 106.7010, 0.6 }, // Khá đông: Phố đi bộ
+                new double[] { 10.7760, 106.7020, 1.0 }, // Cực đông: Nhà thờ Đức Bà
+                new double[] { 10.7680, 106.6950, 0.2 }  // Vắng: Khu rìa ngoài
+            };
+
+            // Thực thi file app.js: Truyền ID của thẻ div "map" và mảng tọa độ vào
+            await JS.InvokeVoidAsync("renderHeatmap", "map", heatmapPoints);
+        }
+    }
+    private DashboardStats? stats;
+public List<ChartSeries<double>> Series = new List<ChartSeries<double>>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Gọi API lấy số liệu
+        stats = await Http.GetFromJsonAsync<DashboardStats>("api/POI/dashboard-stats");
+
+        // Cấu hình dữ liệu cho biểu đồ MudChart
+        if (stats != null)
+        {
+            Series.Add(new ChartSeries<double>() { Name = "Lượt quét", Data = stats.ChartData });
+        }
+    }
+
+    // Class phụ để hứng dữ liệu JSON từ API
+    public class DashboardStats
+    {
+        public decimal TotalRevenue { get; set; }
+        public int TotalQRScans { get; set; }
+        public int TotalTTSPlays { get; set; }
+        public string[] ChartLabels { get; set; }
+        public double[] ChartData { get; set; }
+    }
+}

@@ -1,0 +1,162 @@
+﻿@page "/poi-management"
+@rendermode InteractiveServer
+@using MudBlazor
+@using Microsoft.AspNetCore.Components.Forms
+@using TourGuide.Domain.Models
+@using TourGuide.WebAdmin.Helpers
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<MudText Typo="Typo.h4" Class="mb-4">Quản Lý & Lấy Mã QR</MudText>
+
+<MudTable Items="@approvedPOIs" Hover="true" Striped="true" Loading="@(approvedPOIs == null)">
+    <HeaderContent>
+        <MudTh>Tên Quán</MudTh>
+        <MudTh Style="width: 100px;">Ảnh</MudTh>
+        <MudTh>Trạng Thái</MudTh>
+        <MudTh>Hành Động</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Tên Quán">@context.Name</MudTd>
+        
+        <MudTd DataLabel="Ảnh">
+            @if (!string.IsNullOrEmpty(context.ImageUrl))
+            {
+                <img src="@($"https://localhost:7095{context.ImageUrl}")"
+                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;" />
+            }
+            else
+            {
+                <MudText Typo="Typo.caption" Color="Color.Error">Chưa có ảnh</MudText>
+            }
+        </MudTd>
+
+        <MudTd DataLabel="Trạng Thái">
+            <MudChip T="string" Color="Color.Success" Size="Size.Small">Approved</MudChip>
+        </MudTd>
+        
+        <MudTd DataLabel="Hành Động">
+            <div class="d-flex align-center gap-2">
+                <InputFile id="@($"fileMgmt-{context.Id}")" OnChange="@(e => UploadImage(e, context))" hidden accept=".jpg,.jpeg,.png" />
+                <MudButton HtmlTag="label" for="@($"fileMgmt-{context.Id}")" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Image">Up Ảnh</MudButton>
+
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.QrCode" OnClick="@(() => ShowQRCode(context))">QR</MudButton>
+
+                <MudButton Href="@($"https://localhost:7126/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
+                
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           OnClick="@(() => OpenEditDialog(context))">Sửa Text</MudButton>
+            </div>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@* DIALOG CHỈNH SỬA THUYẾT MINH *@
+<MudDialog @bind-IsVisible="_editDialogVisible" Options="_dialogOptions">
+    <TitleContent><MudText Typo="Typo.h6">Chỉnh sửa nội dung thuyết minh</MudText></TitleContent>
+    <DialogContent>
+        @if (_editingPoi != null)
+        {
+            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+                <MudTabPanel Text="VI (Việt)">
+                    <MudTextField T="string" Label="Tiếng Việt" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_VI" />
+                </MudTabPanel>
+                <MudTabPanel Text="EN (Anh)">
+                    <MudTextField T="string" Label="English" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_EN" />
+                </MudTabPanel>
+                <MudTabPanel Text="KO (Hàn)">
+                    <MudTextField T="string" Label="Korean" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_KO" />
+                </MudTabPanel>
+                <MudTabPanel Text="JA (Nhật)">
+                    <MudTextField T="string" Label="Japanese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_JA" />
+                </MudTabPanel>
+                <MudTabPanel Text="ZH (Trung)">
+                    <MudTextField T="string" Label="Chinese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_ZH" />
+                </MudTabPanel>
+            </MudTabs>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => _editDialogVisible = false">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveDescriptions">Lưu</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private List<POI>? approvedPOIs;
+    
+    // --- Biến cho Edit Dialog ---
+    private bool _editDialogVisible;
+    private POI? _editingPoi;
+    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData() =>
+        approvedPOIs = await Http.GetFromJsonAsync<List<POI>>("api/POI/approved");
+
+    private async Task ShowQRCode(POI poi)
+    {
+        var parameters = new DialogParameters<QRCodeDialog>();
+        parameters.Add(x => x.PoiName, poi.Name);
+        string base64 = QRCodeHelper.GenerateQRCode($"https://localhost:7126/?id={poi.Id}");
+        parameters.Add(x => x.QrCodeBase64, base64);
+
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
+        await DialogService.ShowAsync<QRCodeDialog>("Mã QR Thuyết Minh", parameters, options);
+    }
+
+    // --- Logic mở Dialog và Lưu dữ liệu ---
+    private void OpenEditDialog(POI poi)
+    {
+        _editingPoi = poi;
+        _editDialogVisible = true;
+    }
+
+    private async Task SaveDescriptions()
+    {
+        if (_editingPoi != null)
+        {
+            await Http.PutAsJsonAsync($"api/POI/{_editingPoi.Id}", _editingPoi);
+            Snackbar.Add("Đã lưu nội dung đa ngôn ngữ!", Severity.Success);
+            _editDialogVisible = false;
+            await LoadData();
+        }
+    }
+
+    private async Task UploadImage(InputFileChangeEventArgs e, POI poi)
+    {
+        var file = e.File;
+        if (file == null) return;
+
+        try
+        {
+            using var content = new MultipartFormDataContent();
+            using var stream = file.OpenReadStream(1024 * 1024 * 5);
+            using var streamContent = new StreamContent(stream);
+            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(streamContent, "file", file.Name);
+
+            var response = await Http.PostAsync("api/POI/upload-image", content);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<UploadResult>();
+                if (result != null)
+                {
+                    poi.ImageUrl = result.ImageUrl;
+                    await Http.PutAsJsonAsync($"api/POI/{poi.Id}", poi);
+                    Snackbar.Add("Cập nhật ảnh thành công!", Severity.Success);
+                    await LoadData();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private class UploadResult { public string ImageUrl { get; set; } = ""; }
+}

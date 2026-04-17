@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="TourGuide.API/TourGuide.API.csproj" />
+  <Project Path="TourGuide.Domain/TourGuide.Domain.csproj" />
+  <Project Path="TourGuide.WebAdmin/TourGuide.WebAdmin.csproj" />
+  <Project Path="TourGuide.WebQR/TourGuide.WebQR.csproj" />
+</Solution>

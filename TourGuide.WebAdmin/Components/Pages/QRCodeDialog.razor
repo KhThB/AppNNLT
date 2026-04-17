@@ -1,0 +1,31 @@
+﻿@using MudBlazor
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Mã QR: @PoiName</MudText>
+    </TitleContent>
+    <DialogContent>
+        <div class="d-flex flex-column align-center pa-4">
+            @if (!string.IsNullOrEmpty(QrCodeBase64))
+            {
+                <img src="@QrCodeBase64" style="width:250px; height:250px; border: 1px solid #eee;" />
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Error">Không thể tạo mã QR</MudAlert>
+            }
+            <MudText Class="mt-4" Typo="Typo.body2">Quét mã này để nghe thuyết minh</MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Close">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string PoiName { get; set; } = "";
+    [Parameter] public string QrCodeBase64 { get; set; } = "";
+
+    private void Close() => MudDialog.Close();
+}
