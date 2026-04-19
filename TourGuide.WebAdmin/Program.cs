@@ -9,7 +9,7 @@ builder.Services.AddRazorComponents()
 // Thêm 2 dòng cấu hình này TRƯỚC dòng builder.Build()
 builder.Services.AddMudServices();
 // Nhớ thay đổi cổng 7095 thành cổng mà API (Swagger) của bạn đang chạy
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7095/") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://appnnlt.onrender.com/") });
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
