@@ -75,7 +75,7 @@ else
         }
     }
     private DashboardStats? stats;
-public List<ChartSeries<double>> Series = new List<ChartSeries<double>>();
+    public List<ChartSeries<double>> Series = new List<ChartSeries<double>>();
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,7 +95,7 @@ public List<ChartSeries<double>> Series = new List<ChartSeries<double>>();
         public decimal TotalRevenue { get; set; }
         public int TotalQRScans { get; set; }
         public int TotalTTSPlays { get; set; }
-        public string[] ChartLabels { get; set; }
-        public double[] ChartData { get; set; }
+        public string[] ChartLabels { get; set; } = [];
+        public double[] ChartData { get; set; } = [];
     }
 }
