@@ -1,6 +1,12 @@
 <Solution>
-  <Project Path="TourGuide.API/TourGuide.API.csproj" />
-  <Project Path="TourGuide.Domain/TourGuide.Domain.csproj" />
-  <Project Path="TourGuide.WebAdmin/TourGuide.WebAdmin.csproj" />
-  <Project Path="TourGuide.WebQR/TourGuide.WebQR.csproj" />
+  <Folder Name="/Backend/">
+    <Project Path="TourGuide.API/TourGuide.API.csproj" />
+  </Folder>
+  <Folder Name="/Client/">
+    <Project Path="TourGuide.WebAdmin/TourGuide.WebAdmin.csproj" />
+    <Project Path="TourGuide.WebQR/TourGuide.WebQR.csproj" />
+  </Folder>
+  <Folder Name="/Shared/">
+    <Project Path="TourGuide.Domain/TourGuide.Domain.csproj" />
+  </Folder>
 </Solution>
