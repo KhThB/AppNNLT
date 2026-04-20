@@ -3,6 +3,9 @@
     <Project Path="TourGuide.API/TourGuide.API.csproj" />
   </Folder>
   <Folder Name="/Client/">
+    <Project Path="TourGuide.Mobile/TourGuide.Mobile.csproj" Id="cecd07aa-9ce1-4cc1-bcce-5a93921c5425">
+      <Deploy Solution="Debug|*" />
+    </Project>
     <Project Path="TourGuide.WebAdmin/TourGuide.WebAdmin.csproj" />
     <Project Path="TourGuide.WebQR/TourGuide.WebQR.csproj" />
   </Folder>
