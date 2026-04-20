@@ -1,8 +1,10 @@
 ﻿@page "/"
 @page "/dashboard"
+@implements IDisposable
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject IJSRuntime JS
+
 <MudText Typo="Typo.h4" GutterBottom="true">Dashboard Quản Trị</MudText>
 
 @if (stats == null)
@@ -12,22 +14,28 @@
 else
 {
     <MudGrid>
-        <MudItem xs="12" sm="4">
+        <MudItem xs="12" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
                 <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Tổng Doanh Thu</MudText>
                 <MudText Typo="Typo.h5" Color="Color.Success">@stats.TotalRevenue.ToString("N0") VNĐ</MudText>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12" sm="4">
+        <MudItem xs="12" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
                 <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Lượt Quét QR</MudText>
                 <MudText Typo="Typo.h5">@stats.TotalQRScans</MudText>
             </MudPaper>
         </MudItem>
-        <MudItem xs="12" sm="4">
+        <MudItem xs="12" sm="3">
             <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
                 <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Lượt Nghe TTS</MudText>
                 <MudText Typo="Typo.h5">@stats.TotalTTSPlays</MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            <MudPaper Elevation="4" Class="pa-4 d-flex flex-column align-center justify-center" Style="background-color: #ffebee;">
+                <MudText Typo="Typo.subtitle1" Color="Color.Error" Style="font-weight: bold;">🔴 Đang Trực Tuyến</MudText>
+                <MudText Typo="Typo.h4" Color="Color.Error">@_onlineUsers</MudText>
             </MudPaper>
         </MudItem>
     </MudGrid>
@@ -36,9 +44,9 @@ else
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6" GutterBottom="true">Lượt quét QR (7 ngày qua)</MudText>
-                <MudChart T="double"ChartType="ChartType.Bar" 
-                          ChartSeries="@Series" 
-                          XAxisLabels="@stats.ChartLabels" 
+                <MudChart T="double" ChartType="ChartType.Bar"
+                          ChartSeries="@Series"
+                          XAxisLabels="@stats.ChartLabels"
                           Width="100%" Height="300px" />
             </MudPaper>
         </MudItem>
@@ -46,50 +54,70 @@ else
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6" GutterBottom="true">Mật độ Người dùng (Heatmap)</MudText>
-                <div id="map" style="height: 300px; width: 100%; background-color: #f0f0f0; display:flex; align-items:center; justify-content:center;">
-                    <MudText Typo="Typo.body2" Color="Color.Dark">Bản đồ Leaflet sẽ hiển thị ở đây (Xem bước tiếp theo)</MudText>
-                </div>
+                <div id="map" style="height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
             </MudPaper>
         </MudItem>
     </MudGrid>
 }
 
 @code {
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        // Chỉ gọi JS vẽ bản đồ 1 lần duy nhất khi trang vừa load xong giao diện HTML
-        if (firstRender && stats != null)
-        {
-            // Dữ liệu mẫu (Mock data) mảng tọa độ người dùng quét mã QR
-            // Cấu trúc bắt buộc của Leaflet: [Vĩ độ, Kinh độ, Cường độ nhiệt (0.1 -> 1.0)]
-            var heatmapPoints = new object[]
-            {
-                new double[] { 10.7725, 106.6980, 0.9 }, // Rất đông: Chợ Bến Thành
-                new double[] { 10.7730, 106.7010, 0.6 }, // Khá đông: Phố đi bộ
-                new double[] { 10.7760, 106.7020, 1.0 }, // Cực đông: Nhà thờ Đức Bà
-                new double[] { 10.7680, 106.6950, 0.2 }  // Vắng: Khu rìa ngoài
-            };
-
-            // Thực thi file app.js: Truyền ID của thẻ div "map" và mảng tọa độ vào
-            await JS.InvokeVoidAsync("renderHeatmap", "map", heatmapPoints);
-        }
-    }
     private DashboardStats? stats;
-    public List<ChartSeries<double>> Series = new List<ChartSeries<double>>();
+    public List<ChartSeries<double>> Series = new();
+    
+    // Biến Real-time
+    private int _onlineUsers = 0;
+    private System.Threading.Timer? _timer;
 
     protected override async Task OnInitializedAsync()
     {
-        // Gọi API lấy số liệu
+        // 1. Lấy dữ liệu tĩnh
         stats = await Http.GetFromJsonAsync<DashboardStats>("api/POI/dashboard-stats");
-
-        // Cấu hình dữ liệu cho biểu đồ MudChart
         if (stats != null)
         {
             Series.Add(new ChartSeries<double>() { Name = "Lượt quét", Data = stats.ChartData });
+            StateHasChanged(); // Ép UI cập nhật để <div> map xuất hiện trước khi gọi JS
+        }
+
+        // 2. Chạy ngầm Timer quét số người online mỗi 5 giây (5000ms)
+        _timer = new System.Threading.Timer(async _ =>
+        {
+            await FetchOnlineCount();
+            await InvokeAsync(StateHasChanged);
+        }, null, 0, 5000);
+    }
+
+    private async Task FetchOnlineCount()
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<OnlineStat>("api/Tracking/online-count");
+            if (res != null) _onlineUsers = res.ActiveUsers;
+        }
+        catch { /* Bỏ qua lỗi mạng chập chờn để UI không bị văng */ }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Chỉ vẽ bản đồ KHI LẦN ĐẦU TIÊN TRANG LOAD XONG VÀ ĐÃ CÓ DỮ LIỆU
+        if (firstRender && stats != null)
+        {
+            // Dữ liệu mẫu Heatmap. Tương lai bạn có thể gọi API lấy tọa độ thực.
+            var heatmapPoints = new object[]
+            {
+                new double[] { 10.7628, 106.7005, 0.9 }, // Tọa độ mẫu Vinh Khánh
+                new double[] { 10.7630, 106.7010, 0.6 },
+                new double[] { 10.7620, 106.7020, 1.0 },
+                new double[] { 10.7640, 106.6990, 0.2 }
+            };
+
+            await JS.InvokeVoidAsync("renderHeatmap", "map", heatmapPoints);
         }
     }
 
-    // Class phụ để hứng dữ liệu JSON từ API
+    // Dọn dẹp Timer khi rời khỏi trang
+    public void Dispose() => _timer?.Dispose();
+
+    // Classes hứng dữ liệu
     public class DashboardStats
     {
         public decimal TotalRevenue { get; set; }
@@ -98,4 +126,6 @@ else
         public string[] ChartLabels { get; set; } = [];
         public double[] ChartData { get; set; } = [];
     }
+    
+    public class OnlineStat { public int ActiveUsers { get; set; } }
 }

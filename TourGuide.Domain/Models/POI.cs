@@ -30,6 +30,11 @@ public class POI
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public string ImageUrl { get; set; } = "";
+
+    // --- CÁC BIẾN THỐNG KÊ THỰC TẾ (Đã được đưa vào trong class POI) ---
+    public int QRScanCount { get; set; } = 0;
+    public int TTSPlayCount { get; set; } = 0;
+    public decimal Revenue { get; set; } = 0; // Doanh thu từ việc chủ quán trả phí "Boost" ưu tiên
 }
 
 public class GeoLocation

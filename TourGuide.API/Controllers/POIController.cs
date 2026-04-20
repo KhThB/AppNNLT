@@ -101,15 +101,21 @@ namespace TourGuide.API.Controllers
         // Vì nó chính là nguyên nhân gây lỗi Ambiguous (tranh chấp với "pending", "approved")
 
         [HttpGet("dashboard-stats")]
-        public IActionResult GetDashboardStats()
+        public async Task<IActionResult> GetDashboardStats()
         {
+            // Lấy toàn bộ quán ăn đã duyệt
+            var approvedPOIs = await _poiCollection.Find(p => p.Status == "Approved").ToListAsync();
+
             var stats = new
             {
-                TotalRevenue = 15000000,
-                TotalQRScans = 1250,
-                TotalTTSPlays = 3400,
+                TotalRevenue = approvedPOIs.Sum(p => p.Revenue),
+                TotalQRScans = approvedPOIs.Sum(p => p.QRScanCount),
+                TotalTTSPlays = approvedPOIs.Sum(p => p.TTSPlayCount),
+
+                // Demo mảng biểu đồ: Trong thực tế bạn sẽ cần 1 collection ActivityLog để nhóm theo ngày.
+                // Tạm thời ta chia đều số QR Scans ra các ngày để biểu đồ không bị trống.
                 ChartLabels = new string[] { "T2", "T3", "T4", "T5", "T6", "T7", "CN" },
-                ChartData = new double[] { 120, 150, 100, 200, 250, 300, 130 }
+                ChartData = new double[] { 10, 15, 20, 10, 25, 30, approvedPOIs.Sum(p => p.QRScanCount) }
             };
             return Ok(stats);
         }

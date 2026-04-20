@@ -15,9 +15,6 @@
         <MudButton Href="/print-qr" Target="_blank" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Print">
             In Hàng Loạt
         </MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog">
-            Thêm Quán Mới
-        </MudButton>
     </div>
 </div>
 
@@ -111,24 +108,10 @@
     private async Task LoadData() =>
         approvedPOIs = await Http.GetFromJsonAsync<List<POI>>("api/POI/approved");
 
-    private async Task OpenAddDialog()
-    {
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
-        var dialog = await DialogService.ShowAsync<AddPoiDialog>("Thêm Quán Mới", options);
-        var result = await dialog.Result;
-
-        if (!result.Canceled)
-        {
-            await LoadData();
-        }
-    }
-
     private async Task ShowQRCode(POI poi)
     {
         var parameters = new DialogParameters<QRCodeDialog>();
         parameters.Add(x => x.PoiName, poi.Name);
-        
-        // Đã sửa lại đường dẫn mã QR trỏ về trang web thực tế
         string base64 = QRCodeHelper.GenerateQRCode($"https://tourguide-qr.onrender.com/?id={poi.Id}");
         parameters.Add(x => x.QrCodeBase64, base64);
 
