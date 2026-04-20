@@ -1,0 +1,68 @@
+﻿@using MudBlazor
+@using TourGuide.Domain.Models
+@inject IJSRuntime JS
+@inject HttpClient Http
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField @bind-Value="newPoi.Name" Label="Tên Quán Ăn" Required="true" Variant="Variant.Outlined" />
+        
+        <MudText Typo="Typo.subtitle2" Class="mt-4 mb-2">Chọn vị trí trên bản đồ (Phố Vinh Khánh):</MudText>
+        @* Div này sẽ được Javascript chiếm quyền để vẽ bản đồ *@
+        <div id="picker-map" style="height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+        
+        <div class="d-flex gap-4 mt-2">
+            <MudText Typo="Typo.caption"><b>Vĩ độ:</b> @lat.ToString("F6")</MudText>
+            <MudText Typo="Typo.caption"><b>Kinh độ:</b> @lng.ToString("F6")</MudText>
+        </div>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SavePOI">Tạo Quán</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    // Sửa lỗi CS0246: Dùng IMudDialogInstance thay vì MudDialogInstance
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = null!;
+    
+    private POI newPoi = new POI() { Status = "Approved" };
+    private double lat = 10.7628;
+    private double lng = 106.7005;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Tạo tham chiếu để Javascript có thể gọi ngược lại hàm C#
+            var objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initMapPicker", "picker-map", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateCoordinates(double newLat, double newLng)
+    {
+        lat = newLat;
+        lng = newLng;
+        StateHasChanged(); // Cập nhật lại UI khi tọa độ thay đổi từ bản đồ
+    }
+    private async Task SavePOI()
+    {
+        // Ánh xạ tọa độ dùng đúng class GeoLocation của bạn
+        newPoi.Location = new GeoLocation
+        {
+            Type = "Point",
+            Coordinates = new double[] { lng, lat }
+        };
+        
+        var response = await Http.PostAsJsonAsync("api/POI", newPoi);
+        
+        if (response.IsSuccessStatusCode)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

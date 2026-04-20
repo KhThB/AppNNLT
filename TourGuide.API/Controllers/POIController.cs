@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using TourGuide.Domain.Models;
-
+using CloudinaryDotNet;
+using CloudinaryDotNet.Actions;
 namespace TourGuide.API.Controllers
 {
     [ApiController]
@@ -9,10 +10,11 @@ namespace TourGuide.API.Controllers
     public class POIController : ControllerBase
     {
         private readonly IMongoCollection<POI> _poiCollection;
-
-        public POIController(IMongoDatabase database)
+        private readonly IConfiguration _config;
+        public POIController(IMongoDatabase database, IConfiguration config)
         {
             _poiCollection = database.GetCollection<POI>("POIs");
+            _config = config;
         }
 
         [HttpPost]
@@ -168,26 +170,32 @@ namespace TourGuide.API.Controllers
         [HttpPost("upload-image")]
         public async Task<IActionResult> UploadImage(IFormFile file)
         {
-            if (file == null || file.Length == 0)
-                return BadRequest("Không tìm thấy file ảnh.");
+            if (file == null || file.Length == 0) return BadRequest("Không tìm thấy file ảnh.");
 
-            // 1. Tạo thư mục wwwroot/images nếu chưa có
-            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images");
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
+            // 1. Lấy chìa khóa từ appsettings.json
+            var account = new Account(
+                _config["Cloudinary:CloudName"],
+                _config["Cloudinary:ApiKey"],
+                _config["Cloudinary:ApiSecret"]
+            );
+            var cloudinary = new Cloudinary(account);
 
-            // 2. Đổi tên file bằng Guid để không bao giờ bị trùng tên
-            var fileName = Guid.NewGuid().ToString() + Path.GetExtension(file.FileName);
-            var fullPath = Path.Combine(folderPath, fileName);
-
-            // 3. Lưu file vào ổ cứng
-            using (var stream = new FileStream(fullPath, FileMode.Create))
+            // 2. Chuyển file thành dạng luồng (stream) để đưa lên mạng
+            using var stream = file.OpenReadStream();
+            var uploadParams = new ImageUploadParams()
             {
-                await file.CopyToAsync(stream);
-            }
+                File = new FileDescription(file.FileName, stream),
+                Folder = "VinhKhanhFoodTour" // Gom ảnh vào 1 thư mục cho gọn
+            };
 
-            // 4. Trả về đường dẫn để lưu vào Database (Ví dụ: /images/abc.jpg)
-            return Ok(new { imageUrl = $"/images/{fileName}" });
+            // 3. Upload lên Cloudinary
+            var uploadResult = await cloudinary.UploadAsync(uploadParams);
+
+            if (uploadResult.Error != null)
+                return StatusCode(500, uploadResult.Error.Message);
+
+            // 4. Trả về đường link vĩnh viễn (SecureUrl)
+            return Ok(new { imageUrl = uploadResult.SecureUrl.ToString() });
         }
     }
 }

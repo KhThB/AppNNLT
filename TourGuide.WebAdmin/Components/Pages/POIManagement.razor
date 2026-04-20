@@ -8,7 +8,18 @@
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h4" Class="mb-4">Quản Lý & Lấy Mã QR</MudText>
+<div class="d-flex justify-space-between align-center mb-4">
+    <MudText Typo="Typo.h4">Quản Lý Quán Ăn</MudText>
+    
+    <div class="d-flex gap-2">
+        <MudButton Href="/print-qr" Target="_blank" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Print">
+            In Hàng Loạt
+        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenAddDialog">
+            Thêm Quán Mới
+        </MudButton>
+    </div>
+</div>
 
 <MudTable Items="@approvedPOIs" Hover="true" Striped="true" Loading="@(approvedPOIs == null)">
     <HeaderContent>
@@ -23,8 +34,12 @@
         <MudTd DataLabel="Ảnh">
             @if (!string.IsNullOrEmpty(context.ImageUrl))
             {
-                <img src="@($"https://localhost:7095{context.ImageUrl}")"
-                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;" />
+                // Thông minh: Nếu là link Cloudinary thì in thẳng, nếu là link cũ thì ghép BaseAddress
+                string finalSrc = context.ImageUrl.StartsWith("http")
+                                  ? context.ImageUrl
+                                  : $"{Http.BaseAddress}{context.ImageUrl.TrimStart('/')}";
+
+                <img src="@finalSrc" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;" />
             }
             else
             {
@@ -39,11 +54,12 @@
         <MudTd DataLabel="Hành Động">
             <div class="d-flex align-center gap-2">
                 <InputFile id="@($"fileMgmt-{context.Id}")" OnChange="@(e => UploadImage(e, context))" hidden accept=".jpg,.jpeg,.png" />
-                <MudButton HtmlTag="label" for="@($"fileMgmt-{context.Id}")" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.Image">Up Ảnh</MudButton>
+                <MudButton HtmlTag="label" for="@($"fileMgmt-{context.Id}")" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.CloudUpload">Up Ảnh</MudButton>
 
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.QrCode" OnClick="@(() => ShowQRCode(context))">QR</MudButton>
 
-                <MudButton Href="@($"https://localhost:7126/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
+                @* Thay đổi quan trọng: Thay vì localhost, giờ nó sẽ tự lấy đường dẫn của WebQR để tạo link *@
+                <MudButton Href="@($"https://tourguide-qr.onrender.com/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
                 
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Edit"
@@ -86,8 +102,6 @@
 
 @code {
     private List<POI>? approvedPOIs;
-    
-    // --- Biến cho Edit Dialog ---
     private bool _editDialogVisible;
     private POI? _editingPoi;
     private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
@@ -97,18 +111,31 @@
     private async Task LoadData() =>
         approvedPOIs = await Http.GetFromJsonAsync<List<POI>>("api/POI/approved");
 
+    private async Task OpenAddDialog()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = await DialogService.ShowAsync<AddPoiDialog>("Thêm Quán Mới", options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await LoadData();
+        }
+    }
+
     private async Task ShowQRCode(POI poi)
     {
         var parameters = new DialogParameters<QRCodeDialog>();
         parameters.Add(x => x.PoiName, poi.Name);
-        string base64 = QRCodeHelper.GenerateQRCode($"https://localhost:7126/?id={poi.Id}");
+        
+        // Đã sửa lại đường dẫn mã QR trỏ về trang web thực tế
+        string base64 = QRCodeHelper.GenerateQRCode($"https://tourguide-qr.onrender.com/?id={poi.Id}");
         parameters.Add(x => x.QrCodeBase64, base64);
 
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
         await DialogService.ShowAsync<QRCodeDialog>("Mã QR Thuyết Minh", parameters, options);
     }
 
-    // --- Logic mở Dialog và Lưu dữ liệu ---
     private void OpenEditDialog(POI poi)
     {
         _editingPoi = poi;
@@ -134,7 +161,7 @@
         try
         {
             using var content = new MultipartFormDataContent();
-            using var stream = file.OpenReadStream(1024 * 1024 * 5);
+            using var stream = file.OpenReadStream(1024 * 1024 * 5); // Tối đa 5MB
             using var streamContent = new StreamContent(stream);
             streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
             content.Add(streamContent, "file", file.Name);
@@ -147,7 +174,7 @@
                 {
                     poi.ImageUrl = result.ImageUrl;
                     await Http.PutAsJsonAsync($"api/POI/{poi.Id}", poi);
-                    Snackbar.Add("Cập nhật ảnh thành công!", Severity.Success);
+                    Snackbar.Add("Cập nhật ảnh thành công lên Cloudinary!", Severity.Success);
                     await LoadData();
                 }
             }
