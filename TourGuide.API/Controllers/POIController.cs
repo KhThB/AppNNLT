@@ -72,20 +72,6 @@ namespace TourGuide.API.Controllers
 
             return Ok(sortedPOIs);
         }
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetPOIById(string id)
-        {
-            // Tìm quán ăn trong Database dựa vào ID
-            var poi = await _poiCollection.Find(p => p.Id == id).FirstOrDefaultAsync();
-
-            if (poi == null)
-            {
-                return NotFound("Không tìm thấy dữ liệu quán ăn này.");
-            }
-
-            return Ok(poi);
-        }
-
         // --- NHÓM API CHI TIẾT (Dynamic Routes) ---
 
         // GIỮ LẠI CÁI NÀY (Cách 1 bạn chọn): Để WebQR gọi mượt mà và không trùng với "pending/approved"
@@ -96,7 +82,34 @@ namespace TourGuide.API.Controllers
             if (poi == null) return NotFound();
             return Ok(poi);
         }
+        // --- NHÓM API THANH TOÁN (Tích hợp cổng PayOS/VNPAY) ---
 
+        [HttpPost("payment-webhook")]
+        public async Task<IActionResult> HandlePaymentWebhook([FromBody] WebhookPayload payload)
+        {
+            // Trong thực tế, bạn sẽ dùng thư viện của cổng thanh toán để verify chữ ký (Checksum) ở đây
+            // Để đảm bảo không ai có thể dùng Postman gửi request giả mạo.
+
+            if (payload.Success)
+            {
+                // Tìm quán ăn dựa trên mã đơn hàng (OrderCode)
+                var filter = Builders<POI>.Filter.Eq(p => p.LastTransactionId, payload.OrderCode.ToString());
+
+                var update = Builders<POI>.Update
+                    .Set(p => p.IsPaid, true)
+                    .Set(p => p.Status, "PaymentConfirmed") // Chuyển sang trạng thái chờ Admin duyệt
+                    .Set(p => p.SubscriptionExpiry, DateTime.UtcNow.AddMonths(1));
+
+                var result = await _poiCollection.UpdateOneAsync(filter, update);
+
+                if (result.ModifiedCount > 0)
+                    return Ok(new { message = "Xác nhận thanh toán và cập nhật POI thành công!" });
+
+                return NotFound("Thanh toán thành công nhưng không tìm thấy quán ăn khớp với mã đơn hàng.");
+            }
+
+            return BadRequest("Giao dịch thất bại hoặc bị hủy.");
+        }
         // XÓA HÀM GetPOIById [HttpGet("{id}")] CŨ ĐI 
         // Vì nó chính là nguyên nhân gây lỗi Ambiguous (tranh chấp với "pending", "approved")
 
@@ -202,6 +215,14 @@ namespace TourGuide.API.Controllers
 
             // 4. Trả về đường link vĩnh viễn (SecureUrl)
             return Ok(new { imageUrl = uploadResult.SecureUrl.ToString() });
+        }
+        // Class phụ để hứng dữ liệu từ cổng thanh toán gửi về
+        public class WebhookPayload
+        {
+            public bool Success { get; set; }
+            public long OrderCode { get; set; }
+            public int Amount { get; set; }
+            // Các trường này sẽ thay đổi tùy thuộc bạn dùng PayOS, MoMo hay VNPAY
         }
     }
 }

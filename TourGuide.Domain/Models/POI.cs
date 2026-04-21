@@ -35,6 +35,14 @@ public class POI
     public int QRScanCount { get; set; } = 0;
     public int TTSPlayCount { get; set; } = 0;
     public decimal Revenue { get; set; } = 0; // Doanh thu từ việc chủ quán trả phí "Boost" ưu tiên
+    // Quản lý thanh toán
+    public string SubscriptionPackage { get; set; } = "Basic"; // Basic, Premium, Pro
+    public bool IsPaid { get; set; } = false;
+    public string? LastTransactionId { get; set; }
+    public DateTime? SubscriptionExpiry { get; set; }
+
+    // Nội dung thuyết minh chủ quán tự nhập
+    public string MerchantNote { get; set; } = "";
 }
 
 public class GeoLocation
