@@ -70,6 +70,7 @@
         </div>
 
         <MudGrid>
+            @* Thống kê nhanh *@
             <MudItem xs="12" sm="4">
                 <MudPaper Elevation="2" Class="pa-4 text-center">
                     <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Color="Color.Primary" Style="font-size: 3rem;" />
@@ -89,47 +90,58 @@
                     <MudIcon Icon="@Icons.Material.Filled.Star" Color="Color.Warning" Style="font-size: 3rem;" />
                     <MudText Typo="Typo.h5" Class="mt-2">@_myPoi.SubscriptionPackage</MudText>
                     <MudText Typo="Typo.body2" Color="Color.Secondary">Gói dịch vụ hiện tại</MudText>
-                    @if (_myPoi.SubscriptionPackage == "Basic")
-                    {
-                        <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small" Class="mt-1">Nâng cấp (150k)</MudButton>
-                    }
                 </MudPaper>
             </MudItem>
 
+            @* Sửa tên & Thuyết minh *@
             <MudItem xs="12" md="6">
                 <MudCard Elevation="2">
                     <MudCardHeader>
-                        <CardHeaderContent><MudText Typo="Typo.h6">Nội dung Thuyết minh</MudText></CardHeaderContent>
+                        <CardHeaderContent><MudText Typo="Typo.h6">Thông tin & Thuyết minh</MudText></CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
-                        <MudTextField @bind-Value="_myPoi.Description_VI" Label="Tiếng Việt" Lines="5" Variant="Variant.Outlined" />
+                        <MudTextField @bind-Value="_myPoi.Name" Label="Tên Quán Ăn" Variant="Variant.Outlined" Class="mb-4" />
+                        <MudTextField @bind-Value="_myPoi.Description_VI" Label="Thuyết minh (Tiếng Việt)" Lines="5" Variant="Variant.Outlined" />
                         <MudText Typo="Typo.caption" Color="Color.Info" Class="mt-2 d-block">
-                            *Với gói Premium, nội dung này sẽ được hệ thống tự động dịch ra 4 thứ tiếng khi Admin duyệt.
+                            *Nội dung này sẽ hiển thị cho khách quét QR.
                         </MudText>
                     </MudCardContent>
                     <MudCardActions>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateMerchantPoi">Lưu Thay Đổi</MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateMerchantPoi" StartIcon="@Icons.Material.Filled.Save">Lưu Thay Đổi</MudButton>
                     </MudCardActions>
                 </MudCard>
             </MudItem>
 
+            @* Bản đồ vị trí hiện tại *@
             <MudItem xs="12" md="6">
+                <MudPaper Elevation="2" Class="pa-4" Style="height: 100%; min-height: 380px;">
+                    <MudText Typo="Typo.h6" Class="mb-2">Vị trí quán trên bản đồ</MudText>
+                    <div id="merchant-view-map" style="height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+                </MudPaper>
+            </MudItem>
+
+            @* Hình ảnh *@
+            <MudItem xs="12">
                 <MudCard Elevation="2">
                     <MudCardHeader>
                         <CardHeaderContent><MudText Typo="Typo.h6">Hình ảnh đại diện</MudText></CardHeaderContent>
                     </MudCardHeader>
                     <MudCardContent>
-                        @if (!string.IsNullOrEmpty(_myPoi.ImageUrl))
-                        {
-                            <img src="@(_myPoi.ImageUrl.StartsWith("http") ? _myPoi.ImageUrl : $"{Http.BaseAddress}{_myPoi.ImageUrl.TrimStart('/')}")"
-                                 style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-bottom: 16px;" />
-                        }
-                        <div class="d-flex align-center gap-2">
-                            <InputFile id="merchantImage" OnChange="UploadMerchantImage" hidden accept=".jpg,.jpeg,.png" />
-                            <MudButton HtmlTag="label" for="merchantImage" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
-                                Thay Đổi Ảnh
-                            </MudButton>
-                        </div>
+                        <MudGrid>
+                            <MudItem xs="12" sm="4">
+                                @if (!string.IsNullOrEmpty(_myPoi.ImageUrl))
+                                {
+                                    <img src="@(_myPoi.ImageUrl.StartsWith("http") ? _myPoi.ImageUrl : $"{Http.BaseAddress}{_myPoi.ImageUrl.TrimStart('/')}")"
+                                         style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px;" />
+                                }
+                            </MudItem>
+                            <MudItem xs="12" sm="8" Class="d-flex align-center">
+                                <InputFile id="merchantImage" OnChange="UploadMerchantImage" hidden accept=".jpg,.jpeg,.png" />
+                                <MudButton HtmlTag="label" for="merchantImage" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">
+                                    Thay Đổi Ảnh Quán
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
@@ -149,17 +161,14 @@
     private double _lat = 10.7628;
     private double _lng = 106.7005;
 
-    // FIX: Cờ đánh dấu bản đồ
     private bool _mapInitialized = false;
+    private bool _viewMapInitialized = false; // Cờ cho bản đồ Dashboard
 
-    // 1. TỰ ĐỘNG ĐĂNG NHẬP KHI F5 TRANG
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             var token = await LocalStorage.GetItemAsync<string>("authToken");
-        
-            // Thử lấy cả 2 kiểu đặt tên key để tránh lỗi lệch chữ hoa/thường
             var merchantId = await LocalStorage.GetItemAsync<string>("merchantId");
             if (string.IsNullOrEmpty(merchantId))
                 merchantId = await LocalStorage.GetItemAsync<string>("merchantid");
@@ -168,22 +177,26 @@
             {
                 Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 _currentMerchantId = merchantId;
-                Console.WriteLine("--- KIỂM TRA ĐĂNG NHẬP ---");
-                Console.WriteLine("ID tìm thấy: " + _currentMerchantId);
                 await CheckExistingPoi();
             }
             StateHasChanged();
         }
 
-        // Logic hiện bản đồ
+        // Bản đồ trạng thái 2 (Tạo quán)
         if (!string.IsNullOrEmpty(_currentMerchantId) && _myPoi == null && !_mapInitialized)
         {
             _mapInitialized = true;
             await InitMap();
         }
+
+        // Bản đồ trạng thái 3 (Dashboard - Xem quán)
+        if (_myPoi != null && !_viewMapInitialized)
+        {
+            _viewMapInitialized = true;
+            await InitViewMap();
+        }
     }
 
-    // 2. GỌI API ĐĂNG NHẬP THẬT (Đã chống sập)
     private async Task RealLogin()
     {
         try
@@ -196,114 +209,79 @@
                 var result = await response.Content.ReadFromJsonAsync<LoginResult>();
                 if (result != null && result.User != null)
                 {
-                    // Lưu Storage
-                    await LocalStorage.SetItemAsync("authToken", result.Token);
                     await LocalStorage.SetItemAsync("merchantId", result.User.Id);
+                    await LocalStorage.SetItemAsync("authToken", result.Token);
                     
                     Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
                     _currentMerchantId = result.User.Id;
                     Snackbar.Add("Đăng nhập thành công!", Severity.Success);
-                    
                     await CheckExistingPoi();
                 }
             }
             else
             {
-                Snackbar.Add($"Đăng nhập thất bại. Sai tài khoản hoặc mật khẩu!", Severity.Error);
+                Snackbar.Add($"Sai tài khoản hoặc mật khẩu!", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            // Nếu có lỗi (VD: Trình duyệt chặn Storage), in ra màn hình thay vì sập web
-            Snackbar.Add($"Lỗi trình duyệt/kết nối: {ex.Message}", Severity.Warning);
+            Snackbar.Add($"Lỗi kết nối: {ex.Message}", Severity.Warning);
         }
     }
 
-    // GỌI BẢN ĐỒ (Bảo vệ tuyệt đối chống lỗi DOM)
+    private async Task CheckExistingPoi()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/POI/merchant/{_currentMerchantId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var myPois = await response.Content.ReadFromJsonAsync<List<POI>>();
+                _myPoi = myPois?.FirstOrDefault();
+                _viewMapInitialized = false; // Để nó vẽ lại bản đồ Dashboard khi login
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi: {ex.Message}");
+        }
+    }
+
     private async Task InitMap()
     {
         try
         {
-            // FIX: Cho HTML thêm 100ms để kịp mở rộng kích thước
-            await Task.Delay(100);
-
-            // Vòng lặp chờ thông minh: Đợi tối đa 2 giây (10 lần x 200ms)
-            // để đảm bảo thẻ <div> đã xuất hiện trên trình duyệt
-            bool mapDivExists = false;
-            for (int i = 0; i < 10; i++)
-            {
-                mapDivExists = await JS.InvokeAsync<bool>("eval", "document.getElementById('merchant-map') != null");
-                if (mapDivExists) break;
-                await Task.Delay(200);
-            }
-
-            if (!mapDivExists)
-            {
-                Snackbar.Add("Cảnh báo: Không tìm thấy khung hiển thị bản đồ.", Severity.Warning);
-                return;
-            }
-
-            // Khung đã có -> Ra lệnh cho JavaScript vẽ bản đồ
+            await Task.Delay(200);
             var objRef = DotNetObjectReference.Create(this);
             await JS.InvokeVoidAsync("initMapPicker", "merchant-map", objRef);
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add("Không thể tải bản đồ. Chi tiết: " + ex.Message, Severity.Warning);
-        }
+        catch { }
     }
 
-    // 3. ĐĂNG XUẤT (XÓA CHÌA KHÓA)
+    private async Task InitViewMap()
+    {
+        try
+        {
+            await Task.Delay(500); // Chờ MudBlazor vẽ xong khung
+            if (_myPoi?.Location?.Coordinates != null)
+            {
+                // Gọi hàm hiển thị bản đồ tĩnh
+                await JS.InvokeVoidAsync("initStaticMap", "merchant-view-map", _myPoi.Location.Coordinates[1], _myPoi.Location.Coordinates[0], _myPoi.Name);
+            }
+        }
+        catch { }
+    }
+
     private async Task Logout()
     {
         await LocalStorage.RemoveItemAsync("authToken");
         await LocalStorage.RemoveItemAsync("merchantId");
         Http.DefaultRequestHeaders.Authorization = null;
-        
         _currentMerchantId = null;
         _myPoi = null;
-        
-        // FIX: Reset lại cờ bản đồ để lần đăng nhập sau map vẫn hiện
         _mapInitialized = false;
-    }
-    private async Task CheckExistingPoi()
-    {
-        try
-        {
-            // 1. Gọi API lấy danh sách quán của Merchant này
-            var response = await Http.GetAsync($"api/POI/merchant/{_currentMerchantId}");
-        
-            if (response.IsSuccessStatusCode)
-            {
-                var myPois = await response.Content.ReadFromJsonAsync<List<POI>>();
-            
-                if (myPois != null && myPois.Any())
-                {
-                    // Lấy quán đầu tiên tìm thấy
-                    _myPoi = myPois.First();
-                
-                    // LOG KIỂM TRA: Bấm F12 trên trình duyệt để xem dòng này
-                    Console.WriteLine($"Đã tìm thấy quán: {_myPoi.Name}, ID: {_myPoi.Id}, Status: {_myPoi.Status}");
-                
-                    _mapInitialized = false; // Reset cờ để nếu có bản đồ ở Dashboard nó sẽ vẽ
-                    StateHasChanged();
-                }
-                else
-                {
-                    Console.WriteLine("API trả về danh sách rỗng. Merchant này chưa có quán nào trong DB.");
-                    _myPoi = null;
-                }
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Snackbar.Add($"Lỗi API: {error}", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Lỗi kết nối: {ex.Message}");
-        }
+        _viewMapInitialized = false;
     }
 
     [JSInvokable]
@@ -319,32 +297,23 @@
         {
             _newPoi.Id = Guid.NewGuid().ToString("N").Substring(0, 24);
             _newPoi.OwnerId = _currentMerchantId!;
-            // Khởi tạo tọa độ cho DB
             _newPoi.Location = new GeoLocation { Type = "Point", Coordinates = new double[] { _lng, _lat } };
             _newPoi.SubscriptionPackage = _selectedPackage;
             _newPoi.Description_VI = _newPoi.MerchantNote;
 
             var response = await Http.PostAsJsonAsync("api/POI", _newPoi);
-            
             if (response.IsSuccessStatusCode)
             {
                 Snackbar.Add("Gửi yêu cầu thành công!", Severity.Success);
-            
-                // FIX: Gán thẳng dữ liệu vừa tạo vào _myPoi để hiện Dashboard
                 _myPoi = _newPoi;
-                _myPoi.Status = "Pending"; // Trạng thái mặc định
+                _myPoi.Status = "Pending";
+                _viewMapInitialized = false;
                 StateHasChanged();
-            }
-            else
-            {
-                // Nếu API từ chối, IN LỖI RA MÀN HÌNH để biết thiếu trường gì
-                var errorMsg = await response.Content.ReadAsStringAsync();
-                Snackbar.Add($"Từ chối tạo quán: {errorMsg}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Lỗi kết nối mạng: {ex.Message}", Severity.Error);
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
         }
     }
 
@@ -352,8 +321,11 @@
     {
         if (_myPoi != null)
         {
-            await Http.PutAsJsonAsync($"api/POI/{_myPoi.Id}", _myPoi);
-            Snackbar.Add("Đã lưu nội dung!", Severity.Success);
+            var response = await Http.PutAsJsonAsync($"api/POI/{_myPoi.Id}", _myPoi);
+            if (response.IsSuccessStatusCode)
+                Snackbar.Add("Đã lưu nội dung!", Severity.Success);
+            else
+                Snackbar.Add("Lỗi khi lưu!", Severity.Error);
         }
     }
 
@@ -361,7 +333,6 @@
     {
         var file = e.File;
         if (file == null || _myPoi == null) return;
-
         using var content = new MultipartFormDataContent();
         using var stream = file.OpenReadStream(1024 * 1024 * 5);
         using var streamContent = new StreamContent(stream);
@@ -376,12 +347,11 @@
             {
                 _myPoi.ImageUrl = result.ImageUrl;
                 await Http.PutAsJsonAsync($"api/POI/{_myPoi.Id}", _myPoi);
-                Snackbar.Add("Đã cập nhật ảnh đại diện quán!", Severity.Success);
+                Snackbar.Add("Đã cập nhật ảnh!", Severity.Success);
             }
         }
     }
 
-    // Các class hứng dữ liệu từ API
     public class LoginResult { public string Token { get; set; } = ""; public UserDto User { get; set; } = new(); }
     public class UserDto { public string Id { get; set; } = ""; public string Role { get; set; } = ""; }
     private class UploadResult { public string ImageUrl { get; set; } = ""; }

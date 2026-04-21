@@ -29,7 +29,18 @@ window.renderHeatmap = (mapId, heatmapPoints) => {
         console.log("Heatmap chưa sẵn sàng.", e);
     }
 };
+window.initStaticMap = function (mapId, lat, lng, title) {
+    var container = document.getElementById(mapId);
+    if (!container) return;
+    if (container._leaflet_id) { container._leaflet_id = null; container.innerHTML = ""; }
 
+    var map = L.map(mapId).setView([lat, lng], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+    L.marker([lat, lng]).addTo(map).bindPopup(title).openPopup();
+
+    // Tự động sửa kích thước
+    setTimeout(() => { map.invalidateSize(); }, 200);
+};
 // 2. BẢN ĐỒ CHỌN VỊ TRÍ (Cho Chủ Quán)
 window.initMapPicker = function (mapId, dotNetHelper) {
     var container = document.getElementById(mapId);
