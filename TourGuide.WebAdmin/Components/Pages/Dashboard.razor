@@ -54,31 +54,29 @@ else
         <MudItem xs="12" md="6">
             <MudPaper Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.h6" GutterBottom="true">Mật độ Người dùng (Heatmap)</MudText>
-                <div id="map" style="height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
+                <div id="heatmap" style="min-height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
             </MudPaper>
         </MudItem>
     </MudGrid>
 }
-
 @code {
     private DashboardStats? stats;
     public List<ChartSeries<double>> Series = new();
     
-    // Biến Real-time
     private int _onlineUsers = 0;
     private System.Threading.Timer? _timer;
+    
+    // CỜ ĐÁNH DẤU BẢN ĐỒ
+    private bool _mapInitialized = false;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. Lấy dữ liệu tĩnh
         stats = await Http.GetFromJsonAsync<DashboardStats>("api/POI/dashboard-stats");
         if (stats != null)
         {
             Series.Add(new ChartSeries<double>() { Name = "Lượt quét", Data = stats.ChartData });
-            StateHasChanged(); // Ép UI cập nhật để <div> map xuất hiện trước khi gọi JS
         }
-
-        // 2. Chạy ngầm Timer quét số người online mỗi 5 giây (5000ms)
+        
         _timer = new System.Threading.Timer(async _ =>
         {
             await FetchOnlineCount();
@@ -93,31 +91,55 @@ else
             var res = await Http.GetFromJsonAsync<OnlineStat>("api/Tracking/online-count");
             if (res != null) _onlineUsers = res.ActiveUsers;
         }
-        catch { /* Bỏ qua lỗi mạng chập chờn để UI không bị văng */ }
+        catch { }
     }
 
+    // HÀM NÀY ĐÃ ĐƯỢC SỬA LẠI LOGIC
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Chỉ vẽ bản đồ KHI LẦN ĐẦU TIÊN TRANG LOAD XONG VÀ ĐÃ CÓ DỮ LIỆU
-        if (firstRender && stats != null)
+        // Khi stats ĐÃ CÓ DATA (khung div đã xuất hiện) VÀ bản đồ CHƯA ĐƯỢC VẼ
+        if (stats != null && !_mapInitialized)
         {
-            // Dữ liệu mẫu Heatmap. Tương lai bạn có thể gọi API lấy tọa độ thực.
-            var heatmapPoints = new object[]
-            {
-                new double[] { 10.7628, 106.7005, 0.9 }, // Tọa độ mẫu Vinh Khánh
-                new double[] { 10.7630, 106.7010, 0.6 },
-                new double[] { 10.7620, 106.7020, 1.0 },
-                new double[] { 10.7640, 106.6990, 0.2 }
-            };
-
-            await JS.InvokeVoidAsync("renderHeatmap", "map", heatmapPoints);
+            _mapInitialized = true; // Khóa lại, chỉ vẽ 1 lần duy nhất
+            await InitHeatmap();
         }
     }
 
-    // Dọn dẹp Timer khi rời khỏi trang
+    private async Task InitHeatmap()
+    {
+        try
+        {
+            await Task.Delay(100); // Đợi 1 chút xíu cho DOM ổn định
+
+            bool mapExists = false;
+            for (int i = 0; i < 10; i++)
+            {
+                mapExists = await JS.InvokeAsync<bool>("eval", "document.getElementById('heatmap') != null");
+                if (mapExists) break;
+                await Task.Delay(200);
+            }
+
+            if (mapExists)
+            {
+                var heatmapPoints = new object[]
+                {
+                    new double[] { 10.7628, 106.7005, 0.9 },
+                    new double[] { 10.7630, 106.7010, 0.6 },
+                    new double[] { 10.7620, 106.7020, 1.0 },
+                    new double[] { 10.7640, 106.6990, 0.2 }
+                };
+
+                await JS.InvokeVoidAsync("renderHeatmap", "heatmap", heatmapPoints);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Lỗi tải Heatmap: " + ex.Message);
+        }
+    }
+
     public void Dispose() => _timer?.Dispose();
 
-    // Classes hứng dữ liệu
     public class DashboardStats
     {
         public decimal TotalRevenue { get; set; }

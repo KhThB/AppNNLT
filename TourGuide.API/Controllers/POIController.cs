@@ -216,6 +216,22 @@ namespace TourGuide.API.Controllers
             // 4. Trả về đường link vĩnh viễn (SecureUrl)
             return Ok(new { imageUrl = uploadResult.SecureUrl.ToString() });
         }
+        [HttpGet("merchant/{merchantId}")]
+        public async Task<ActionResult<List<POI>>> GetPOIsByMerchant(string merchantId)
+        {
+            try
+            {
+                // Sử dụng Filter chuẩn để MongoDB tự ép kiểu string sang ObjectId
+                var filter = Builders<POI>.Filter.Eq("OwnerId", merchantId);
+                var pois = await _poiCollection.Find(filter).ToListAsync();
+
+                return Ok(pois);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest("ID không hợp lệ hoặc lỗi truy vấn: " + ex.Message);
+            }
+        }
         // Class phụ để hứng dữ liệu từ cổng thanh toán gửi về
         public class WebhookPayload
         {

@@ -6,7 +6,10 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+   .AddInteractiveServerComponents(options =>
+   {
+       options.DetailedErrors = true; // Add this line
+   });
 // Thêm 2 dòng cấu hình này TRƯỚC dòng builder.Build()
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();

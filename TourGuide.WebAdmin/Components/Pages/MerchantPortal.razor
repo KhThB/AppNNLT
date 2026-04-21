@@ -149,60 +149,107 @@
     private double _lat = 10.7628;
     private double _lng = 106.7005;
 
+    // FIX: Cờ đánh dấu bản đồ
+    private bool _mapInitialized = false;
+
     // 1. TỰ ĐỘNG ĐĂNG NHẬP KHI F5 TRANG
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             var token = await LocalStorage.GetItemAsync<string>("authToken");
+        
+            // Thử lấy cả 2 kiểu đặt tên key để tránh lỗi lệch chữ hoa/thường
             var merchantId = await LocalStorage.GetItemAsync<string>("merchantId");
+            if (string.IsNullOrEmpty(merchantId))
+                merchantId = await LocalStorage.GetItemAsync<string>("merchantid");
 
             if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(merchantId))
             {
-                // Gắn chìa khóa vào các request gọi API
                 Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
                 _currentMerchantId = merchantId;
+                Console.WriteLine("--- KIỂM TRA ĐĂNG NHẬP ---");
+                Console.WriteLine("ID tìm thấy: " + _currentMerchantId);
                 await CheckExistingPoi();
             }
             StateHasChanged();
         }
+
+        // Logic hiện bản đồ
+        if (!string.IsNullOrEmpty(_currentMerchantId) && _myPoi == null && !_mapInitialized)
+        {
+            _mapInitialized = true;
+            await InitMap();
+        }
     }
 
-    // 2. GỌI API ĐĂNG NHẬP THẬT
+    // 2. GỌI API ĐĂNG NHẬP THẬT (Đã chống sập)
     private async Task RealLogin()
     {
-        // Gửi object với tên trường y hệt class LoginRequest ở API
-        var loginData = new { Phone = _loginPhone, Password = _loginPassword };
-        
-        var response = await Http.PostAsJsonAsync("api/Auth/login", loginData);
-
-        if (response.IsSuccessStatusCode)
+        try
         {
-            var result = await response.Content.ReadFromJsonAsync<LoginResult>();
-            
-            // Kiểm tra result và result.User (Tránh lỗi Null Reference)
-            if (result != null && result.User != null)
+            var loginData = new { Phone = _loginPhone, Password = _loginPassword };
+            var response = await Http.PostAsJsonAsync("api/Auth/login", loginData);
+
+            if (response.IsSuccessStatusCode)
             {
-                await LocalStorage.SetItemAsync("authToken", result.Token);
-                await LocalStorage.SetItemAsync("merchantId", result.User.Id);
-                
-                Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
-                
-                _currentMerchantId = result.User.Id;
-                Snackbar.Add("Đăng nhập thành công!", Severity.Success);
-                
-                await CheckExistingPoi();
+                var result = await response.Content.ReadFromJsonAsync<LoginResult>();
+                if (result != null && result.User != null)
+                {
+                    // Lưu Storage
+                    await LocalStorage.SetItemAsync("authToken", result.Token);
+                    await LocalStorage.SetItemAsync("merchantId", result.User.Id);
+                    
+                    Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
+                    _currentMerchantId = result.User.Id;
+                    Snackbar.Add("Đăng nhập thành công!", Severity.Success);
+                    
+                    await CheckExistingPoi();
+                }
             }
             else
             {
-                Snackbar.Add("Dữ liệu trả về không hợp lệ!", Severity.Warning);
+                Snackbar.Add($"Đăng nhập thất bại. Sai tài khoản hoặc mật khẩu!", Severity.Error);
             }
         }
-        else
+        catch (Exception ex)
         {
-            // Đọc nội dung lỗi để debug nếu cần
-            var errorMsg = await response.Content.ReadAsStringAsync();
-            Snackbar.Add($"Đăng nhập thất bại: Số điện thoại hoặc mật khẩu không đúng!", Severity.Error);
+            // Nếu có lỗi (VD: Trình duyệt chặn Storage), in ra màn hình thay vì sập web
+            Snackbar.Add($"Lỗi trình duyệt/kết nối: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    // GỌI BẢN ĐỒ (Bảo vệ tuyệt đối chống lỗi DOM)
+    private async Task InitMap()
+    {
+        try
+        {
+            // FIX: Cho HTML thêm 100ms để kịp mở rộng kích thước
+            await Task.Delay(100);
+
+            // Vòng lặp chờ thông minh: Đợi tối đa 2 giây (10 lần x 200ms)
+            // để đảm bảo thẻ <div> đã xuất hiện trên trình duyệt
+            bool mapDivExists = false;
+            for (int i = 0; i < 10; i++)
+            {
+                mapDivExists = await JS.InvokeAsync<bool>("eval", "document.getElementById('merchant-map') != null");
+                if (mapDivExists) break;
+                await Task.Delay(200);
+            }
+
+            if (!mapDivExists)
+            {
+                Snackbar.Add("Cảnh báo: Không tìm thấy khung hiển thị bản đồ.", Severity.Warning);
+                return;
+            }
+
+            // Khung đã có -> Ra lệnh cho JavaScript vẽ bản đồ
+            var objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initMapPicker", "merchant-map", objRef);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Không thể tải bản đồ. Chi tiết: " + ex.Message, Severity.Warning);
         }
     }
 
@@ -215,33 +262,48 @@
         
         _currentMerchantId = null;
         _myPoi = null;
+        
+        // FIX: Reset lại cờ bản đồ để lần đăng nhập sau map vẫn hiện
+        _mapInitialized = false;
     }
-
     private async Task CheckExistingPoi()
     {
         try
         {
-            var allPois = await Http.GetFromJsonAsync<List<POI>>("api/POI/approved");
-            _myPoi = allPois?.FirstOrDefault(p => p.OwnerId == _currentMerchantId);
-            
-            if (_myPoi == null)
+            // 1. Gọi API lấy danh sách quán của Merchant này
+            var response = await Http.GetAsync($"api/POI/merchant/{_currentMerchantId}");
+        
+            if (response.IsSuccessStatusCode)
             {
-                StateHasChanged();
-                await InitMap();
+                var myPois = await response.Content.ReadFromJsonAsync<List<POI>>();
+            
+                if (myPois != null && myPois.Any())
+                {
+                    // Lấy quán đầu tiên tìm thấy
+                    _myPoi = myPois.First();
+                
+                    // LOG KIỂM TRA: Bấm F12 trên trình duyệt để xem dòng này
+                    Console.WriteLine($"Đã tìm thấy quán: {_myPoi.Name}, ID: {_myPoi.Id}, Status: {_myPoi.Status}");
+                
+                    _mapInitialized = false; // Reset cờ để nếu có bản đồ ở Dashboard nó sẽ vẽ
+                    StateHasChanged();
+                }
+                else
+                {
+                    Console.WriteLine("API trả về danh sách rỗng. Merchant này chưa có quán nào trong DB.");
+                    _myPoi = null;
+                }
             }
             else
             {
-                StateHasChanged();
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Lỗi API: {error}", Severity.Error);
             }
         }
-        catch { }
-    }
-
-    private async Task InitMap()
-    {
-        await Task.Delay(100);
-        var objRef = DotNetObjectReference.Create(this);
-        await JS.InvokeVoidAsync("initMapPicker", "merchant-map", objRef);
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi kết nối: {ex.Message}");
+        }
     }
 
     [JSInvokable]
@@ -253,22 +315,36 @@
 
     private async Task SubmitAndPay()
     {
-        _newPoi.OwnerId = _currentMerchantId!;
-        _newPoi.Location = new GeoLocation { Type = "Point", Coordinates = new double[] { _lng, _lat } };
-        _newPoi.SubscriptionPackage = _selectedPackage;
-        _newPoi.Description_VI = _newPoi.MerchantNote;
-
-        var response = await Http.PostAsJsonAsync("api/POI", _newPoi);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            if (_selectedPackage == "Premium")
-            {
-                Snackbar.Add("Chuyển hướng đến cổng thanh toán PayOS...", Severity.Info);
-                await Task.Delay(1500);
-            }
+            _newPoi.Id = Guid.NewGuid().ToString("N").Substring(0, 24);
+            _newPoi.OwnerId = _currentMerchantId!;
+            // Khởi tạo tọa độ cho DB
+            _newPoi.Location = new GeoLocation { Type = "Point", Coordinates = new double[] { _lng, _lat } };
+            _newPoi.SubscriptionPackage = _selectedPackage;
+            _newPoi.Description_VI = _newPoi.MerchantNote;
+
+            var response = await Http.PostAsJsonAsync("api/POI", _newPoi);
             
-            Snackbar.Add("Gửi yêu cầu thành công!", Severity.Success);
-            await CheckExistingPoi();
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Gửi yêu cầu thành công!", Severity.Success);
+            
+                // FIX: Gán thẳng dữ liệu vừa tạo vào _myPoi để hiện Dashboard
+                _myPoi = _newPoi;
+                _myPoi.Status = "Pending"; // Trạng thái mặc định
+                StateHasChanged();
+            }
+            else
+            {
+                // Nếu API từ chối, IN LỖI RA MÀN HÌNH để biết thiếu trường gì
+                var errorMsg = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Từ chối tạo quán: {errorMsg}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi kết nối mạng: {ex.Message}", Severity.Error);
         }
     }
 
