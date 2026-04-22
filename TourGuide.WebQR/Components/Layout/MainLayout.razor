@@ -1,0 +1,20 @@
+﻿@inherits LayoutComponentBase
+@using MudBlazor
+
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+@* Giao diện sạch 100%, bỏ hẳn thanh Sidebar bên trái *@
+<MudLayout>
+    <MudMainContent Class="pa-0">
+        @Body
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui">
+    Đã có lỗi xảy ra. Vui lòng tải lại trang.
+    <a href="" class="reload">Tải lại</a>
+    <a class="dismiss">🗙</a>
+</div>
