@@ -9,16 +9,20 @@
 @inject ISnackbar Snackbar
 
 <div class="d-flex justify-space-between align-center mb-4">
-    <MudText Typo="Typo.h4">Quản Lý Quán Ăn</MudText>
+    <MudText Typo="Typo.h4" Style="font-weight: 700; color: #0f172a;">Quản Lý Quán Ăn</MudText>
     
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-3">
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.AutoFixHigh" OnClick="SeedVinhKhanhData">
+            Tạo Data Vĩnh Khánh
+        </MudButton>
+        
         <MudButton Href="/print-qr" Target="_blank" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Print">
             In Hàng Loạt
         </MudButton>
     </div>
 </div>
 
-<MudTable Items="@approvedPOIs" Hover="true" Striped="true" Loading="@(approvedPOIs == null)">
+<MudTable Items="@approvedPOIs" Hover="true" Striped="true" Loading="@(approvedPOIs == null)" Elevation="2" Style="border-radius: 12px; overflow: hidden;">
     <HeaderContent>
         <MudTh>Tên Quán</MudTh>
         <MudTh Style="width: 100px;">Ảnh</MudTh>
@@ -26,12 +30,11 @@
         <MudTh>Hành Động</MudTh>
     </HeaderContent>
     <RowTemplate>
-        <MudTd DataLabel="Tên Quán">@context.Name</MudTd>
+        <MudTd DataLabel="Tên Quán"><strong>@context.Name</strong></MudTd>
         
         <MudTd DataLabel="Ảnh">
             @if (!string.IsNullOrEmpty(context.ImageUrl))
             {
-                // Thông minh: Nếu là link Cloudinary thì in thẳng, nếu là link cũ thì ghép BaseAddress
                 string finalSrc = context.ImageUrl.StartsWith("http")
                                   ? context.ImageUrl
                                   : $"{Http.BaseAddress}{context.ImageUrl.TrimStart('/')}";
@@ -55,12 +58,12 @@
 
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.QrCode" OnClick="@(() => ShowQRCode(context))">QR</MudButton>
 
-                @* Thay đổi quan trọng: Thay vì localhost, giờ nó sẽ tự lấy đường dẫn của WebQR để tạo link *@
-                <MudButton Href="@($"https://tourguide-qr.onrender.com/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
+                @* Đã sửa lại đường dẫn theo chuẩn mới của WebQR *@
+                <MudButton Href="@($"https://tourguide-qr.onrender.com/poi/{context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
                 
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.Edit"
-                           OnClick="@(() => OpenEditDialog(context))">Sửa Text</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small" StartIcon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditDialog(context))">Sửa Text</MudButton>
+
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeletePoi(context))" title="Xóa quán này" />
             </div>
         </MudTd>
     </RowTemplate>
@@ -108,11 +111,90 @@
     private async Task LoadData() =>
         approvedPOIs = await Http.GetFromJsonAsync<List<POI>>("api/POI/approved");
 
+    // ==========================================
+    // TÍNH NĂNG MỚI: XÓA QUÁN ĂN
+    // ==========================================
+    private async Task DeletePoi(POI poi)
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Xác nhận xóa",
+            $"Bạn có chắc chắn muốn xóa vĩnh viễn quán '{poi.Name}' không?",
+            yesText: "Xóa", cancelText: "Hủy");
+
+        if (result == true)
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"api/POI/{poi.Id}");
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add($"Đã xóa {poi.Name}", Severity.Success);
+                    await LoadData(); // Tải lại bảng
+                }
+                else
+                {
+                    Snackbar.Add("Lỗi khi xóa quán từ Server", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    // ==========================================
+    // TÍNH NĂNG MỚI: TẠO DATA VĨNH KHÁNH TỰ ĐỘNG
+    // ==========================================
+    private async Task SeedVinhKhanhData()
+    {
+        bool? result = await DialogService.ShowMessageBox(
+            "Tạo dữ liệu mẫu",
+            "Hệ thống sẽ tự động thêm 3 quán nổi tiếng ở Vĩnh Khánh (Ốc Oanh, Ốc Vũ, Sụn Gà) vào danh sách. Tiếp tục?",
+            yesText: "Tạo ngay", cancelText: "Hủy");
+
+        if (result != true) return;
+
+        // Định nghĩa 3 quán mẫu chuẩn
+        var seedData = new List<POI>
+        {
+            new POI {
+                Name = "Ốc Oanh Vĩnh Khánh",
+                Description_VI = "Huyền thoại phố ốc Vĩnh Khánh. Nổi tiếng nhất với món Càng ghẹ rang muối ớt cay nồng.",
+                Status = "Approved",
+                ImageUrl = "https://images.unsplash.com/photo-1626804475297-41609ea004eb?q=80&w=800"
+            },
+            new POI {
+                Name = "Ốc Vũ",
+                Description_VI = "Quán ốc có không gian rộng rãi, thoáng mát. Món best-seller ở đây là nghêu hấp sả.",
+                Status = "Approved",
+                ImageUrl = "https://images.unsplash.com/photo-1559742811-822873691df8?q=80&w=800"
+            },
+            new POI {
+                Name = "Sụn Gà Chiên Mắm Vĩnh Khánh",
+                Description_VI = "Sụn gà chiên nước mắm ở đây giòn rụm, mặn ngọt ăn kèm với tỏi phi cực kỳ tốn bia.",
+                Status = "Approved",
+                ImageUrl = "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=800"
+            }
+        };
+
+        int successCount = 0;
+        foreach (var poi in seedData)
+        {
+            var response = await Http.PostAsJsonAsync("api/POI", poi);
+            if (response.IsSuccessStatusCode) successCount++;
+        }
+
+        Snackbar.Add($"Đã thêm thành công {successCount}/3 quán Vĩnh Khánh!", Severity.Success);
+        await LoadData();
+    }
+
+    // CÁC HÀM CŨ GIỮ NGUYÊN BÊN DƯỚI
     private async Task ShowQRCode(POI poi)
     {
         var parameters = new DialogParameters<QRCodeDialog>();
         parameters.Add(x => x.PoiName, poi.Name);
-        string base64 = QRCodeHelper.GenerateQRCode($"https://tourguide-qr.onrender.com/?id={poi.Id}");
+        string base64 = QRCodeHelper.GenerateQRCode($"https://tourguide-qr.onrender.com/poi/{poi.Id}");
         parameters.Add(x => x.QrCodeBase64, base64);
 
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
@@ -144,7 +226,7 @@
         try
         {
             using var content = new MultipartFormDataContent();
-            using var stream = file.OpenReadStream(1024 * 1024 * 5); // Tối đa 5MB
+            using var stream = file.OpenReadStream(1024 * 1024 * 5);
             using var streamContent = new StreamContent(stream);
             streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
             content.Add(streamContent, "file", file.Name);
