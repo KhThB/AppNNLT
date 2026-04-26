@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace TourGuide.Domain.Models;
@@ -13,6 +13,7 @@ public class POI
     public string OwnerId { get; set; } = "";
 
     public string Name { get; set; } = "";
+    public string Address { get; set; } = "";
 
     // Multi-language descriptions
     public string Description_VI { get; set; } = "";
@@ -20,6 +21,16 @@ public class POI
     public string Description_KO { get; set; } = "";
     public string Description_JA { get; set; } = "";
     public string Description_ZH { get; set; } = "";
+
+    // Audio URLs for TTS fallback
+    public string AudioUrl_VI { get; set; } = "";
+    public string AudioUrl_EN { get; set; } = "";
+    public string AudioUrl_KO { get; set; } = "";
+    public string AudioUrl_JA { get; set; } = "";
+    public string AudioUrl_ZH { get; set; } = "";
+
+    // Geofencing Radius (meters)
+    public double Radius { get; set; } = 50;
 
     public GeoLocation Location { get; set; }
 

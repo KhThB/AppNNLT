@@ -1,5 +1,5 @@
-﻿// 1. BẢN ĐỒ HEATMAP (Cho Dashboard Admin)
-window.renderHeatmap = (mapId, heatmapPoints) => {
+// 1. BẢN ĐỒ CLUSTER MAP (Cho Dashboard Admin)
+window.renderClusterMap = (mapId, points) => {
     try {
         const el = document.getElementById(mapId);
         if (!el) return;
@@ -10,14 +10,25 @@ window.renderHeatmap = (mapId, heatmapPoints) => {
         }
         if (window.myMap) { window.myMap.remove(); }
 
-        window.myMap = L.map(mapId).setView([10.7725, 106.6980], 14);
+        window.myMap = L.map(mapId).setView([10.7628, 106.7005], 14); // Tọa độ trung tâm Vĩnh Khánh
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.myMap);
 
-        if (heatmapPoints && heatmapPoints.length > 0) {
-            L.heatLayer(heatmapPoints, { radius: 25, blur: 15 }).addTo(window.myMap);
+        if (points && points.length > 0) {
+            var markers = L.markerClusterGroup({
+                maxClusterRadius: 50 // Bán kính gộp nhóm
+            });
+
+            points.forEach(p => {
+                // p[0] là lat, p[1] là lng
+                var marker = L.marker([p[0], p[1]]);
+                // Nếu có title thì add popup
+                if(p[2]) marker.bindPopup("<b>" + p[2] + "</b>");
+                markers.addLayer(marker);
+            });
+
+            window.myMap.addLayer(markers);
         }
 
-        // VŨ KHÍ TỐI THƯỢNG: Ép vẽ lại mỗi 100ms trong 1 giây đầu tiên
         var count = 0;
         var interval = setInterval(function () {
             window.myMap.invalidateSize();
@@ -26,7 +37,7 @@ window.renderHeatmap = (mapId, heatmapPoints) => {
         }, 100);
 
     } catch (e) {
-        console.log("Heatmap chưa sẵn sàng.", e);
+        console.log("ClusterMap chưa sẵn sàng.", e);
     }
 };
 window.initStaticMap = function (mapId, lat, lng, title) {

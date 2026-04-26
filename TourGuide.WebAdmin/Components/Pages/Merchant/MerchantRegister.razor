@@ -1,0 +1,108 @@
+@page "/merchant/register"
+@layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
+@rendermode InteractiveServer
+@using MudBlazor
+@using TourGuide.Domain.Models
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-16">
+    <MudText Typo="Typo.h3" Align="Align.Center" GutterBottom="true" Class="gradient-text" Style="font-weight: 700;">Tạo Quán Mới</MudText>
+    <MudText Typo="Typo.body1" Align="Align.Center" Class="mb-8" Color="Color.Secondary">Đưa địa điểm kinh doanh của bạn lên hệ sinh thái VinhKhanh FoodTour</MudText>
+    
+    <MudPaper Elevation="4" Class="pa-8 mx-auto glass-panel" Style="max-width: 800px; border-radius: 16px;">
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="_newPoi.Name" Label="Tên Quán Ăn" Variant="Variant.Outlined" Class="mb-4" />
+                <MudTextField @bind-Value="_newPoi.MerchantNote" Label="Giới thiệu & Thuyết minh (Sẽ phát Audio cho khách)" Lines="4" Variant="Variant.Outlined" Class="mb-6" />
+            </MudItem>
+            
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6" Class="mb-2" Color="Color.Primary">Chọn vị trí trên bản đồ</MudText>
+                <div id="merchant-map" style="height: 350px; width: 100%; border-radius: 12px; border: 2px solid #E2E8F0; z-index: 1;" class="mb-6"></div>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudText Typo="Typo.h6" Class="mb-4" Color="Color.Primary">Chọn gói dịch vụ</MudText>
+                <MudSelect T="string" @bind-Value="_selectedPackage" Variant="Variant.Outlined" Class="mb-6" AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@("Basic")">Gói Cơ Bản (Miễn Phí) - AI đọc Tiếng Việt</MudSelectItem>
+                    <MudSelectItem Value="@("Premium")">Gói Premium (150.000đ/tháng) - Dịch AI 4 ngôn ngữ + Ưu tiên hiển thị</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="12">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" FullWidth="true" OnClick="SubmitAndPay" Style="border-radius: 8px; font-weight: 600; padding: 14px 0;">
+                    @(_selectedPackage == "Basic" ? "Gửi Yêu Cầu Duyệt Quán" : "Thanh Toán & Kích Hoạt Gói (150k)")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private POI _newPoi = new POI();
+    private string _selectedPackage = "Basic";
+    private double _lat = 10.7628;
+    private double _lng = 106.7005;
+    private string? _currentMerchantId = null;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            _currentMerchantId = await LocalStorage.GetItemAsync<string>("merchantId");
+
+            if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(_currentMerchantId))
+            {
+                Navigation.NavigateTo("/merchant/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            // Khởi tạo bản đồ
+            await Task.Delay(200);
+            var objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initMapPicker", "merchant-map", objRef);
+        }
+    }
+
+    [JSInvokable]
+    public void UpdateCoordinates(double newLat, double newLng)
+    {
+        _lat = newLat;
+        _lng = newLng;
+    }
+
+    private async Task SubmitAndPay()
+    {
+        try
+        {
+            _newPoi.Id = Guid.NewGuid().ToString("N").Substring(0, 24);
+            _newPoi.OwnerId = _currentMerchantId!;
+            _newPoi.Location = new GeoLocation { Type = "Point", Coordinates = new double[] { _lng, _lat } };
+            _newPoi.SubscriptionPackage = _selectedPackage;
+            _newPoi.Description_VI = _newPoi.MerchantNote;
+
+            var response = await Http.PostAsJsonAsync("api/POI", _newPoi);
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Gửi yêu cầu tạo quán thành công! Chờ Admin duyệt.", Severity.Success);
+                Navigation.NavigateTo("/merchant/dashboard");
+            }
+            else
+            {
+                Snackbar.Add("Có lỗi xảy ra khi tạo quán.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
+}

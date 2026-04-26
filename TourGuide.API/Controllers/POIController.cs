@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using MongoDB.Driver;
 using TourGuide.Domain.Models;
 using CloudinaryDotNet;
@@ -37,10 +37,26 @@ namespace TourGuide.API.Controllers
         // --- NHÓM API LẤY DANH SÁCH (Static Routes) ---
 
         [HttpGet("approved")]
-        public async Task<IActionResult> GetApprovedPOIs()
+        public async Task<IActionResult> GetApprovedPOIs([FromQuery] int page = 1, [FromQuery] int limit = 20)
         {
             var filter = Builders<POI>.Filter.Eq(p => p.Status, "Approved");
-            return Ok(await _poiCollection.Find(filter).ToListAsync());
+            
+            var totalItems = await _poiCollection.CountDocumentsAsync(filter);
+            var totalPages = (int)Math.Ceiling(totalItems / (double)limit);
+
+            var items = await _poiCollection.Find(filter)
+                .Skip((page - 1) * limit)
+                .Limit(limit)
+                .ToListAsync();
+
+            return Ok(new {
+                Data = items,
+                CurrentPage = page,
+                PageSize = limit,
+                TotalItems = totalItems,
+                TotalPages = totalPages,
+                HasNext = page < totalPages
+            });
         }
 
         [HttpGet("pending")]
@@ -113,25 +129,7 @@ namespace TourGuide.API.Controllers
         // XÓA HÀM GetPOIById [HttpGet("{id}")] CŨ ĐI 
         // Vì nó chính là nguyên nhân gây lỗi Ambiguous (tranh chấp với "pending", "approved")
 
-        [HttpGet("dashboard-stats")]
-        public async Task<IActionResult> GetDashboardStats()
-        {
-            // Lấy toàn bộ quán ăn đã duyệt
-            var approvedPOIs = await _poiCollection.Find(p => p.Status == "Approved").ToListAsync();
 
-            var stats = new
-            {
-                TotalRevenue = approvedPOIs.Sum(p => p.Revenue),
-                TotalQRScans = approvedPOIs.Sum(p => p.QRScanCount),
-                TotalTTSPlays = approvedPOIs.Sum(p => p.TTSPlayCount),
-
-                // Demo mảng biểu đồ: Trong thực tế bạn sẽ cần 1 collection ActivityLog để nhóm theo ngày.
-                // Tạm thời ta chia đều số QR Scans ra các ngày để biểu đồ không bị trống.
-                ChartLabels = new string[] { "T2", "T3", "T4", "T5", "T6", "T7", "CN" },
-                ChartData = new double[] { 10, 15, 20, 10, 25, 30, approvedPOIs.Sum(p => p.QRScanCount) }
-            };
-            return Ok(stats);
-        }
 
         // --- NHÓM API THAY ĐỔI TRẠNG THÁI (PUT) ---
 
@@ -176,11 +174,17 @@ namespace TourGuide.API.Controllers
                 .Set(p => p.Status, updatedPOI.Status)
                 .Set(p => p.PriorityLevel, updatedPOI.PriorityLevel)
                 .Set(p => p.ImageUrl, updatedPOI.ImageUrl) // Cập nhật ảnh
+                .Set(p => p.Radius, updatedPOI.Radius) // Cập nhật Bán kính
                 .Set(p => p.Description_VI, updatedPOI.Description_VI) // Các trường mô tả
                 .Set(p => p.Description_EN, updatedPOI.Description_EN)
                 .Set(p => p.Description_KO, updatedPOI.Description_KO)
                 .Set(p => p.Description_JA, updatedPOI.Description_JA)
-                .Set(p => p.Description_ZH, updatedPOI.Description_ZH);
+                .Set(p => p.Description_ZH, updatedPOI.Description_ZH)
+                .Set(p => p.AudioUrl_VI, updatedPOI.AudioUrl_VI)
+                .Set(p => p.AudioUrl_EN, updatedPOI.AudioUrl_EN)
+                .Set(p => p.AudioUrl_KO, updatedPOI.AudioUrl_KO)
+                .Set(p => p.AudioUrl_JA, updatedPOI.AudioUrl_JA)
+                .Set(p => p.AudioUrl_ZH, updatedPOI.AudioUrl_ZH);
 
             var result = await _poiCollection.UpdateOneAsync(p => p.Id == id, update);
 

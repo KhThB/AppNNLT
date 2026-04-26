@@ -1,5 +1,30 @@
 html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-family: 'Inter', Helvetica, Arial, sans-serif;
+    background-color: #F8FAFC;
+}
+
+/* Premium Effects */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.7) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+}
+
+.hover-lift {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+.gradient-text {
+    background: linear-gradient(90deg, #1E3A8A, #D97706);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 a, .btn-link {

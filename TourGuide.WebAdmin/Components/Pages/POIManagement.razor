@@ -1,4 +1,4 @@
-﻿@page "/poi-management"
+@page "/poi-management"
 @rendermode InteractiveServer
 @using MudBlazor
 @using Microsoft.AspNetCore.Components.Forms
@@ -55,8 +55,8 @@
 
                 <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.QrCode" OnClick="@(() => ShowQRCode(context))">QR</MudButton>
 
-                @* Thay đổi quan trọng: Thay vì localhost, giờ nó sẽ tự lấy đường dẫn của WebQR để tạo link *@
-                <MudButton Href="@($"https://tourguide-qr.onrender.com/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
+                @* Đã đổi link sang localhost của WebQR *@
+                <MudButton Href="@($"https://localhost:7118/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
                 
                 <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Edit"
@@ -72,21 +72,39 @@
     <DialogContent>
         @if (_editingPoi != null)
         {
+            <MudTextField T="string" Label="Địa chỉ quán ăn"
+                          Variant="Variant.Outlined"
+                          @bind-Value="_editingPoi.Address"
+                          Margin="Margin.Normal"
+                          Placeholder="Ví dụ: 534 Vĩnh Khánh, Phường 8, Quận 4"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.LocationOn"
+                          Class="mb-4" />
+
+            <MudSlider @bind-Value="_editingPoi.Radius" Min="10" Max="500" Step="10" Color="Color.Primary" Class="mb-4">
+                Bán kính Geofence: @_editingPoi.Radius mét
+            </MudSlider>
+
             <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
                 <MudTabPanel Text="VI (Việt)">
-                    <MudTextField T="string" Label="Tiếng Việt" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_VI" />
+                    <MudTextField T="string" Label="Tiếng Việt" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_VI" Class="mb-2" />
+                    <MudTextField T="string" Label="Audio URL (VI) - Để trống nếu dùng AI TTS" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_VI" />
                 </MudTabPanel>
                 <MudTabPanel Text="EN (Anh)">
-                    <MudTextField T="string" Label="English" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_EN" />
+                    <MudTextField T="string" Label="English" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_EN" Class="mb-2" />
+                    <MudTextField T="string" Label="Audio URL (EN)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_EN" />
                 </MudTabPanel>
                 <MudTabPanel Text="KO (Hàn)">
-                    <MudTextField T="string" Label="Korean" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_KO" />
+                    <MudTextField T="string" Label="Korean" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_KO" Class="mb-2" />
+                    <MudTextField T="string" Label="Audio URL (KO)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_KO" />
                 </MudTabPanel>
                 <MudTabPanel Text="JA (Nhật)">
-                    <MudTextField T="string" Label="Japanese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_JA" />
+                    <MudTextField T="string" Label="Japanese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_JA" Class="mb-2" />
+                    <MudTextField T="string" Label="Audio URL (JA)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_JA" />
                 </MudTabPanel>
                 <MudTabPanel Text="ZH (Trung)">
-                    <MudTextField T="string" Label="Chinese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_ZH" />
+                    <MudTextField T="string" Label="Chinese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_ZH" Class="mb-2" />
+                    <MudTextField T="string" Label="Audio URL (ZH)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_ZH" />
                 </MudTabPanel>
             </MudTabs>
         }
@@ -105,14 +123,29 @@
 
     protected override async Task OnInitializedAsync() => await LoadData();
 
-    private async Task LoadData() =>
-        approvedPOIs = await Http.GetFromJsonAsync<List<POI>>("api/POI/approved");
+    private async Task LoadData()
+    {
+        // Admin tải trang 1 với limit lớn để thấy hết hoặc implement pagination trên UI sau
+        var result = await Http.GetFromJsonAsync<PagedResult<POI>>("api/POI/approved?page=1&limit=1000");
+        if (result != null)
+        {
+            approvedPOIs = result.Data;
+        }
+    }
+
+    public class PagedResult<T>
+    {
+        public List<T> Data { get; set; } = new();
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
+        public bool HasNext { get; set; }
+    }
 
     private async Task ShowQRCode(POI poi)
     {
         var parameters = new DialogParameters<QRCodeDialog>();
         parameters.Add(x => x.PoiName, poi.Name);
-        string base64 = QRCodeHelper.GenerateQRCode($"https://tourguide-qr.onrender.com/?id={poi.Id}");
+        string base64 = QRCodeHelper.GenerateQRCode($"https://localhost:7118/?id={poi.Id}");
         parameters.Add(x => x.QrCodeBase64, base64);
 
         var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };

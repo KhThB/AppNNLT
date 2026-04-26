@@ -14,7 +14,7 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();
 // Nhớ thay đổi cổng 7095 thành cổng mà API (Swagger) của bạn đang chạy
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://appnnlt.onrender.com/") });
+builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7095/") });
 var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

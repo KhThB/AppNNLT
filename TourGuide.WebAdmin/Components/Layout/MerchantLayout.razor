@@ -1,17 +1,18 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @using MudBlazor
+@using TourGuide.WebAdmin.Helpers
 
-<MudThemeProvider />
+<MudThemeProvider Theme="CustomTheme.MerchantTheme" />
 <MudDialogProvider />
 <MudSnackbarProvider />
 <MudPopoverProvider />
 <MudLayout>
-    <MudAppBar Color="Color.Primary" Fixed="true">
-        <MudIcon Icon="@Icons.Material.Filled.Restaurant" Class="mr-2" />
-        <MudText Typo="Typo.h6">VinhKhanh FoodTour - Cổng Chủ Quán</MudText>
+    <MudAppBar Color="Color.Primary" Fixed="true" Elevation="2">
+        <MudIcon Icon="@Icons.Material.Filled.RestaurantMenu" Class="mr-3" Size="Size.Large" />
+        <MudText Typo="Typo.h5" Style="font-weight: 600;">VinhKhanh FoodTour <span style="font-weight: 300; opacity: 0.8">| Cổng Chủ Quán</span></MudText>
     </MudAppBar>
 
-    <MudMainContent>
+    <MudMainContent Class="pt-16">
         <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
             @Body
         </MudContainer>

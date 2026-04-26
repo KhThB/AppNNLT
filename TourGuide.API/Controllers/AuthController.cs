@@ -1,4 +1,4 @@
-﻿using CloudinaryDotNet.Core;
+using CloudinaryDotNet.Core;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using MongoDB.Driver;
@@ -77,6 +77,37 @@ namespace TourGuide.API.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+        [HttpPost("social-login")]
+        public async Task<IActionResult> SocialLogin([FromBody] SocialLoginRequest request)
+        {
+            if (string.IsNullOrEmpty(request.Provider) || string.IsNullOrEmpty(request.ProviderId))
+                return BadRequest("Thiếu thông tin đăng nhập mxh.");
+
+            // 1. Kiểm tra xem user này đã tồn tại chưa (dựa trên ProviderId)
+            var user = await _users.Find(u => u.ProviderId == request.ProviderId && u.AuthProvider == request.Provider).FirstOrDefaultAsync();
+
+            // 2. Nếu chưa tồn tại, tự động tạo tài khoản mới cho họ
+            if (user == null)
+            {
+                user = new User
+                {
+                    AuthProvider = request.Provider,
+                    ProviderId = request.ProviderId,
+                    FullName = request.FullName ?? "Người dùng ẩn danh",
+                    Email = request.Email ?? "",
+                    Role = "User" // Luôn set là khách du lịch
+                };
+                await _users.InsertOneAsync(user);
+            }
+
+            // 3. Cấp Token của hệ thống
+            var token = GenerateJwtToken(user);
+            return Ok(new
+            {
+                Token = token,
+                User = new { user.Id, user.FullName, user.Email, user.Role, user.AuthProvider }
+            });
+        }
     }
 
     // Lớp phụ để hứng dữ liệu đăng nhập
@@ -84,5 +115,13 @@ namespace TourGuide.API.Controllers
     {
         public string Phone { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
+    }
+
+    public class SocialLoginRequest
+    {
+        public string Provider { get; set; } = "Google"; // Google / Facebook / Apple
+        public string ProviderId { get; set; } = string.Empty; // Mã ID định danh từ bên thứ 3
+        public string? FullName { get; set; }
+        public string? Email { get; set; }
     }
 }

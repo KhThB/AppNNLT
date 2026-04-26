@@ -1,0 +1,248 @@
+@page "/merchant/dashboard"
+@layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
+@rendermode InteractiveServer
+@using MudBlazor
+@using TourGuide.Domain.Models
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Navigation
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-8 mb-16">
+    @if (_isLoading)
+    {
+        <div class="d-flex justify-center my-16">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+        </div>
+    }
+    else if (_myPoi != null)
+    {
+        <div class="d-flex justify-space-between align-center mb-8 glass-panel pa-4 hover-lift" Style="border-radius: 12px;">
+            <div>
+                <MudText Typo="Typo.h4" Style="font-weight: 700;" Class="gradient-text">Xin chào, @_myPoi.Name!</MudText>
+                <MudText Typo="Typo.subtitle1" Color="Color.Secondary" Class="mt-1">
+                    Trạng thái hiển thị:
+                    <MudChip T="string" Color="@(_myPoi.Status == "Approved" ? Color.Success : Color.Warning)" Size="Size.Small" Class="ml-2 font-weight-bold">@_myPoi.Status</MudChip>
+                </MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" StartIcon="@Icons.Material.Filled.Logout" OnClick="Logout" Style="border-radius: 8px;">Đăng Xuất</MudButton>
+        </div>
+
+        <MudGrid>
+            @* Thống kê nhanh *@
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-6 text-center glass-panel hover-lift" Style="border-radius: 16px;">
+                    <MudIcon Icon="@Icons.Material.Filled.QrCodeScanner" Color="Color.Primary" Style="font-size: 3.5rem;" Class="mb-2" />
+                    <MudText Typo="Typo.h3" Style="font-weight: 700;">@_myPoi.QRScanCount</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">Lượt khách quét QR</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-6 text-center glass-panel hover-lift" Style="border-radius: 16px;">
+                    <MudIcon Icon="@Icons.Material.Filled.VolumeUp" Color="Color.Secondary" Style="font-size: 3.5rem;" Class="mb-2" />
+                    <MudText Typo="Typo.h3" Style="font-weight: 700;">@_myPoi.TTSPlayCount</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Secondary">Lượt nghe Audio</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-6 text-center glass-panel hover-lift" Style="border-radius: 16px; background: linear-gradient(135deg, rgba(217, 119, 6, 0.1) 0%, rgba(255, 255, 255, 0.5) 100%);">
+                    <MudIcon Icon="@Icons.Material.Filled.WorkspacePremium" Color="Color.Warning" Style="font-size: 3.5rem;" Class="mb-2" />
+                    <MudText Typo="Typo.h5" Style="font-weight: 700;" Class="mt-2 mb-1">@_myPoi.SubscriptionPackage</MudText>
+                    <MudText Typo="Typo.body1" Color="Color.Warning">Gói dịch vụ hiện tại</MudText>
+                </MudPaper>
+            </MudItem>
+
+            @* Sửa tên & Thuyết minh *@
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Class="glass-panel" Style="border-radius: 16px; height: 100%;">
+                    <MudCardHeader Class="pb-0">
+                        <CardHeaderContent><MudText Typo="Typo.h6" Color="Color.Primary">Cập nhật Nội dung Thuyết minh</MudText></CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudTextField @bind-Value="_myPoi.Name" Label="Tên Quán Ăn" Variant="Variant.Outlined" Class="mb-5" />
+                        <MudTextField @bind-Value="_myPoi.Description_VI" Label="Nội dung Tiếng Việt (AI sẽ đọc cho khách)" Lines="6" Variant="Variant.Outlined" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2 d-block">
+                            *Thay đổi sẽ áp dụng ngay lập tức trên Mobile App.
+                        </MudText>
+                    </MudCardContent>
+                    <MudCardActions Class="px-4 pb-4">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="UpdateMerchantPoi" StartIcon="@Icons.Material.Filled.Save" Style="border-radius: 8px;" FullWidth="true">Lưu Nội Dung</MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+
+            @* Bản đồ vị trí hiện tại *@
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2" Class="glass-panel" Style="border-radius: 16px; height: 100%;">
+                    <MudCardHeader Class="pb-0">
+                        <CardHeaderContent><MudText Typo="Typo.h6" Color="Color.Primary">Vị trí Định vị (Geofence)</MudText></CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <div id="merchant-view-map" style="height: 320px; width: 100%; border-radius: 12px; border: 1px solid #E2E8F0; z-index: 1;"></div>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            @* Hình ảnh *@
+            <MudItem xs="12">
+                <MudCard Elevation="2" Class="glass-panel hover-lift" Style="border-radius: 16px;">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.h6" Color="Color.Primary">Quản lý Hình ảnh Đại diện</MudText></CardHeaderContent>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="12" sm="4">
+                                @if (!string.IsNullOrEmpty(_myPoi.ImageUrl))
+                                {
+                                    <div style="border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                        <img src="@(_myPoi.ImageUrl.StartsWith("http") ? _myPoi.ImageUrl : $"{Http.BaseAddress}{_myPoi.ImageUrl.TrimStart('/')}")"
+                                             style="width: 100%; height: 200px; object-fit: cover;" />
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div class="d-flex align-center justify-center" style="width: 100%; height: 200px; background-color: #f1f5f9; border-radius: 12px; border: 2px dashed #cbd5e1;">
+                                        <MudText Color="Color.Secondary">Chưa có ảnh</MudText>
+                                    </div>
+                                }
+                            </MudItem>
+                            <MudItem xs="12" sm="8" Class="d-flex flex-column justify-center">
+                                <MudText Typo="Typo.body1" Class="mb-4">Tải lên hình ảnh không gian quán hoặc món ăn đặc trưng. Ảnh đẹp sẽ thu hút nhiều khách du lịch bấm vào nghe thuyết minh hơn.</MudText>
+                                <div>
+                                    <InputFile id="merchantImage" OnChange="UploadMerchantImage" hidden accept=".jpg,.jpeg,.png" />
+                                    <MudButton HtmlTag="label" for="merchantImage" Variant="Variant.Filled" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.CloudUpload" Style="border-radius: 8px; padding: 10px 20px;">
+                                        Tải Ảnh Mới Lên
+                                    </MudButton>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private string? _currentMerchantId = null;
+    private POI? _myPoi = null;
+    private bool _isLoading = true;
+    private bool _viewMapInitialized = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            _currentMerchantId = await LocalStorage.GetItemAsync<string>("merchantId");
+
+            if (string.IsNullOrEmpty(token) || string.IsNullOrEmpty(_currentMerchantId))
+            {
+                Navigation.NavigateTo("/merchant/login");
+                return;
+            }
+
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            await CheckExistingPoi();
+        }
+
+        if (_myPoi != null && !_viewMapInitialized && !_isLoading)
+        {
+            _viewMapInitialized = true;
+            await InitViewMap();
+        }
+    }
+
+    private async Task CheckExistingPoi()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/POI/merchant/{_currentMerchantId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var myPois = await response.Content.ReadFromJsonAsync<List<POI>>();
+                _myPoi = myPois?.FirstOrDefault();
+                
+                if (_myPoi == null)
+                {
+                    // Nếu chưa có quán, chuyển sang trang Register
+                    Navigation.NavigateTo("/merchant/register");
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi fetch POI: {ex.Message}");
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task InitViewMap()
+    {
+        try
+        {
+            await Task.Delay(300);
+            if (_myPoi?.Location?.Coordinates != null)
+            {
+                await JS.InvokeVoidAsync("initStaticMap", "merchant-view-map", _myPoi.Location.Coordinates[1], _myPoi.Location.Coordinates[0], _myPoi.Name);
+            }
+        }
+        catch { }
+    }
+
+    private async Task UpdateMerchantPoi()
+    {
+        if (_myPoi != null)
+        {
+            var response = await Http.PutAsJsonAsync($"api/POI/{_myPoi.Id}", _myPoi);
+            if (response.IsSuccessStatusCode)
+                Snackbar.Add("Đã lưu nội dung thành công!", Severity.Success);
+            else
+                Snackbar.Add("Lỗi khi lưu dữ liệu!", Severity.Error);
+        }
+    }
+
+    private async Task UploadMerchantImage(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null || _myPoi == null) return;
+        
+        Snackbar.Add("Đang tải ảnh lên...", Severity.Info);
+        
+        using var content = new MultipartFormDataContent();
+        using var stream = file.OpenReadStream(1024 * 1024 * 5);
+        using var streamContent = new StreamContent(stream);
+        streamContent.Headers.ContentType = new MediaTypeHeaderValue(file.ContentType);
+        content.Add(streamContent, "file", file.Name);
+
+        var response = await Http.PostAsync("api/POI/upload-image", content);
+        if (response.IsSuccessStatusCode)
+        {
+            var result = await response.Content.ReadFromJsonAsync<UploadResult>();
+            if (result != null)
+            {
+                _myPoi.ImageUrl = result.ImageUrl;
+                await Http.PutAsJsonAsync($"api/POI/{_myPoi.Id}", _myPoi);
+                Snackbar.Add("Cập nhật ảnh thành công!", Severity.Success);
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("authToken");
+        await LocalStorage.RemoveItemAsync("merchantId");
+        Http.DefaultRequestHeaders.Authorization = null;
+        Navigation.NavigateTo("/merchant/login", forceLoad: true);
+    }
+
+    private class UploadResult { public string ImageUrl { get; set; } = ""; }
+}

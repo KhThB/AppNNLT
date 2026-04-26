@@ -4,16 +4,15 @@ using TourGuide.WebQR.Components;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+builder.Services.AddRazorComponents();
 
-// Khởi tạo MudBlazor
-builder.Services.AddMudServices();
+// Loại bỏ MudBlazor vì chúng ta dùng HTML tĩnh hoàn toàn
+// builder.Services.AddMudServices();
 
-// KẾT NỐI API: Cấu hình HttpClient trỏ về Backend trên Render
+// KẾT NỐI API: Cấu hình HttpClient trỏ về Backend Local
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("https://appnnlt.onrender.com/")
+    BaseAddress = new Uri("https://localhost:7095/")
 });
 
 var app = builder.Build();
@@ -29,7 +28,6 @@ app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAntiforgery();
 
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+app.MapRazorComponents<App>();
 
 app.Run();

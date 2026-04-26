@@ -24,13 +24,23 @@
         </div>
 
         <div class="pa-6 text-center">
-            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #333;" Class="mb-4">@_poi.Name</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #333;" Class="mb-2">@_poi.Name</MudText>
+
+            @if (!string.IsNullOrEmpty(_poi.Address))
+            {
+                <div class="d-flex align-center justify-center mb-4" style="color: #64748b;">
+                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
+                    <MudText Typo="Typo.body2">@_poi.Address</MudText>
+                </div>
+            }
 
             @if (_poi.Location?.Coordinates != null && _poi.Location.Coordinates.Length == 2)
             {
                 var lon = _poi.Location.Coordinates[0].ToString(System.Globalization.CultureInfo.InvariantCulture);
                 var lat = _poi.Location.Coordinates[1].ToString(System.Globalization.CultureInfo.InvariantCulture);
-                var mapUrl = $"https://www.google.com/maps/dir/?api=1&destination=${lat},{lon}";
+                
+                // ĐÃ SỬA LỖI LINK: Dùng chuẩn link Search của Google Maps để tự động mở App trên điện thoại
+                var mapUrl = $"https://www.google.com/maps/search/?api=1&query={lat},{lon}";
                 
                 <MudButton Href="@mapUrl" Target="_blank" Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Map" Class="mb-6 w-100" Style="border-radius: 8px;">
                     🗺️ Chỉ đường Map

@@ -1,17 +1,8 @@
-﻿@inherits LayoutComponentBase
-@using MudBlazor
+@inherits LayoutComponentBase
 
-<MudThemeProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-<MudPopoverProvider />
-
-@* Giao diện sạch 100%, bỏ hẳn thanh Sidebar bên trái *@
-<MudLayout>
-    <MudMainContent Class="pa-0">
-        @Body
-    </MudMainContent>
-</MudLayout>
+<main class="w-100 h-100 m-0 p-0">
+    @Body
+</main>
 
 <div id="blazor-error-ui">
     Đã có lỗi xảy ra. Vui lòng tải lại trang.

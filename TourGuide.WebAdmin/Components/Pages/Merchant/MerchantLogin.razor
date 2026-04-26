@@ -1,0 +1,90 @@
+@page "/merchant/login"
+@page "/merchant"
+@layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
+@rendermode InteractiveServer
+@using MudBlazor
+@using TourGuide.Domain.Models
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="d-flex align-center justify-center" Style="min-height: 80vh;">
+    <MudPaper Elevation="4" Class="pa-8 glass-panel hover-lift" Style="width: 100%; max-width: 480px; border-radius: 16px;">
+        <div class="d-flex justify-center mb-4">
+            <MudIcon Icon="@Icons.Material.Filled.Storefront" Color="Color.Primary" Style="font-size: 4rem;" />
+        </div>
+        
+        <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true" Class="gradient-text" Style="font-weight: 700;">Dành Cho Chủ Quán</MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-6" Color="Color.Secondary">Đăng nhập để quản lý quán ăn của bạn trên hệ thống VinhKhanh FoodTour.</MudText>
+        
+        <MudTextField @bind-Value="_loginPhone" Label="Số điện thoại" Variant="Variant.Outlined" Class="mb-4" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Phone" />
+        <MudTextField @bind-Value="_loginPassword" Label="Mật khẩu" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-6" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Lock" />
+        
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" OnClick="RealLogin" Style="border-radius: 8px; font-weight: 600; padding: 12px 0;">
+            Đăng Nhập
+        </MudButton>
+        
+        <div class="d-flex justify-center mt-6">
+            <MudLink Href="/merchant/register" Underline="Underline.Hover" Color="Color.Primary">Chưa có tài khoản? Đăng ký ngay</MudLink>
+        </div>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _loginPhone = "";
+    private string _loginPassword = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Tự động chuyển hướng nếu đã đăng nhập
+            var token = await LocalStorage.GetItemAsync<string>("authToken");
+            var merchantId = await LocalStorage.GetItemAsync<string>("merchantId");
+
+            if (!string.IsNullOrEmpty(token) && !string.IsNullOrEmpty(merchantId))
+            {
+                Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+                Navigation.NavigateTo("/merchant/dashboard", forceLoad: true);
+            }
+        }
+    }
+
+    private async Task RealLogin()
+    {
+        try
+        {
+            var loginData = new { Phone = _loginPhone, Password = _loginPassword };
+            var response = await Http.PostAsJsonAsync("api/Auth/login", loginData);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<LoginResult>();
+                if (result != null && result.User != null)
+                {
+                    await LocalStorage.SetItemAsync("merchantId", result.User.Id);
+                    await LocalStorage.SetItemAsync("authToken", result.Token);
+                    
+                    Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Token);
+                    Snackbar.Add("Đăng nhập thành công!", Severity.Success);
+                    
+                    // Chuyển hướng sang dashboard
+                    Navigation.NavigateTo("/merchant/dashboard", forceLoad: true);
+                }
+            }
+            else
+            {
+                Snackbar.Add($"Sai tài khoản hoặc mật khẩu!", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Lỗi kết nối: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    public class LoginResult { public string Token { get; set; } = ""; public UserDto User { get; set; } = new(); }
+    public class UserDto { public string Id { get; set; } = ""; public string Role { get; set; } = ""; }
+}

@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 
 namespace TourGuide.Domain.Models;
@@ -9,9 +9,13 @@ public class User
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
 
-    // --- CÁC TRƯỜNG ĐĂNG NHẬP (Dành cho Merchant Portal) ---
+    // --- CÁC TRƯỜNG ĐĂNG NHẬP (Dành cho Merchant Portal & Local Auth) ---
     public string Phone { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
+
+    // --- CÁC TRƯỜNG ĐĂNG NHẬP MẠNG XÃ HỘI (Google/Facebook/Apple) ---
+    public string AuthProvider { get; set; } = "Local"; // Local, Google, Facebook, Apple
+    public string ProviderId { get; set; } = string.Empty; // Token ID hoặc Google Account ID
 
     // --- CÁC TRƯỜNG THÔNG TIN CƠ BẢN ---
     public string Email { get; set; } = string.Empty;
