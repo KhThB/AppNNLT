@@ -1,205 +1,209 @@
-@page "/poi-management"
+@page "/admin/poi-management"
 @rendermode InteractiveServer
-@using MudBlazor
-@using Microsoft.AspNetCore.Components.Forms
-@using TourGuide.Domain.Models
-@using TourGuide.WebAdmin.Helpers
+@using TourGuide.WebAdmin.Components.Shared
+@using TourGuide.WebAdmin.Models
 @inject HttpClient Http
-@inject IDialogService DialogService
+@inject IConfiguration Config
 @inject ISnackbar Snackbar
 
-<div class="d-flex justify-space-between align-center mb-4">
-    <MudText Typo="Typo.h4">Quản Lý Quán Ăn</MudText>
-    
-    <div class="d-flex gap-2">
-        <MudButton Href="/print-qr" Target="_blank" Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.Print">
-            In Hàng Loạt
-        </MudButton>
-    </div>
-</div>
+<PortalGuard RequiredRole="Admin" RedirectTo="/admin/login" OnAuthorized="LoadAfterAuthAsync">
+    <MudText Typo="Typo.h4" Class="mb-4">Quản lý POI</MudText>
 
-<MudTable Items="@approvedPOIs" Hover="true" Striped="true" Loading="@(approvedPOIs == null)">
-    <HeaderContent>
-        <MudTh>Tên Quán</MudTh>
-        <MudTh Style="width: 100px;">Ảnh</MudTh>
-        <MudTh>Trạng Thái</MudTh>
-        <MudTh>Hành Động</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="Tên Quán">@context.Name</MudTd>
-        
-        <MudTd DataLabel="Ảnh">
-            @if (!string.IsNullOrEmpty(context.ImageUrl))
-            {
-                // Thông minh: Nếu là link Cloudinary thì in thẳng, nếu là link cũ thì ghép BaseAddress
-                string finalSrc = context.ImageUrl.StartsWith("http")
-                                  ? context.ImageUrl
-                                  : $"{Http.BaseAddress}{context.ImageUrl.TrimStart('/')}";
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" md="5">
+            <MudTextField @bind-Value="_search" Label="Search" Variant="Variant.Outlined" Immediate="true" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="string" @bind-Value="_status" Label="Status" Variant="Variant.Outlined">
+                <MudSelectItem Value="@string.Empty">Tất cả</MudSelectItem>
+                <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
+                <MudSelectItem Value="@("Submitted")">Submitted</MudSelectItem>
+                <MudSelectItem Value="@("Approved")">Approved</MudSelectItem>
+                <MudSelectItem Value="@("Rejected")">Rejected</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="2">
+            <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" OnClick="ReloadAsync">Lọc</MudButton>
+        </MudItem>
+    </MudGrid>
 
-                <img src="@finalSrc" style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px; border: 1px solid #ddd;" />
-            }
-            else
-            {
-                <MudText Typo="Typo.caption" Color="Color.Error">Chưa có ảnh</MudText>
-            }
-        </MudTd>
+    <MudTable Items="_items" Hover="true" Dense="true" Loading="_loading">
+        <HeaderContent>
+            <MudTh>Tên quán</MudTh>
+            <MudTh>Trạng thái</MudTh>
+            <MudTh>Gói</MudTh>
+            <MudTh>QR/TTS</MudTh>
+            <MudTh>Hành động</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Name</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
+            <MudTd>@context.SubscriptionPackage</MudTd>
+            <MudTd>@context.CountedQrScanCount / @context.CountedTtsPlayCount</MudTd>
+            <MudTd>
+                <div class="d-flex gap-2">
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" OnClick="() => SelectPoi(context)">Sửa</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Secondary" Href="@GetQrUrl(context.Id)" Target="_blank">WebQR</MudButton>
+                </div>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
 
-        <MudTd DataLabel="Trạng Thái">
-            <MudChip T="string" Color="Color.Success" Size="Size.Small">Approved</MudChip>
-        </MudTd>
-        
-        <MudTd DataLabel="Hành Động">
-            <div class="d-flex align-center gap-2">
-                <InputFile id="@($"fileMgmt-{context.Id}")" OnChange="@(e => UploadImage(e, context))" hidden accept=".jpg,.jpeg,.png" />
-                <MudButton HtmlTag="label" for="@($"fileMgmt-{context.Id}")" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" StartIcon="@Icons.Material.Filled.CloudUpload">Up Ảnh</MudButton>
+    <MudPagination Count="@Math.Max(1, _totalPages)" Selected="_page" SelectedChanged="OnPageChanged" Class="mt-4" />
 
-                <MudButton Variant="Variant.Outlined" Color="Color.Info" Size="Size.Small" StartIcon="@Icons.Material.Filled.QrCode" OnClick="@(() => ShowQRCode(context))">QR</MudButton>
+    @if (_selected != null)
+    {
+        <MudPaper Class="pa-6 mt-6 glass-panel" Style="border-radius: 16px;">
+            <MudText Typo="Typo.h6" Class="mb-4">Chỉnh sửa POI</MudText>
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_selected.Name" Label="Tên quán" Variant="Variant.Outlined" Class="mb-4" />
+                    <MudTextField @bind-Value="_selected.Address" Label="Địa chỉ" Variant="Variant.Outlined" Class="mb-4" />
+                    <MudTextField @bind-Value="_selected.SourceDescription" Label="Nội dung nguồn" Variant="Variant.Outlined" Lines="6" />
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <MudNumericField T="double" @bind-Value="_selected.Latitude" Label="Latitude" Variant="Variant.Outlined" Class="mb-4" />
+                    <MudNumericField T="double" @bind-Value="_selected.Longitude" Label="Longitude" Variant="Variant.Outlined" Class="mb-4" />
+                    <MudSlider @bind-Value="_selected.Radius" Min="10" Max="500" Step="10" Color="Color.Primary" Class="mb-4">Radius: @_selected.Radius m</MudSlider>
+                    <MudNumericField T="int" @bind-Value="_selected.PriorityLevel" Label="Priority" Variant="Variant.Outlined" Class="mb-4" />
+                    <MudNumericField T="int" @bind-Value="_selected.BoostPriority" Label="Boost Priority" Variant="Variant.Outlined" Class="mb-4" />
+                </MudItem>
+            </MudGrid>
 
-                @* Đã đổi link sang localhost của WebQR *@
-                <MudButton Href="@($"https://localhost:7118/?id={context.Id}")" Target="_blank" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" StartIcon="@Icons.Material.Filled.OpenInNew">Xem Web</MudButton>
-                
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.Edit"
-                           OnClick="@(() => OpenEditDialog(context))">Sửa Text</MudButton>
+            <div class="d-flex gap-3 mt-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSelectedAsync">Lưu</MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="SubmitSelectedAsync">Submit lại</MudButton>
             </div>
-        </MudTd>
-    </RowTemplate>
-</MudTable>
-
-@* DIALOG CHỈNH SỬA THUYẾT MINH *@
-<MudDialog @bind-IsVisible="_editDialogVisible" Options="_dialogOptions">
-    <TitleContent><MudText Typo="Typo.h6">Chỉnh sửa nội dung thuyết minh</MudText></TitleContent>
-    <DialogContent>
-        @if (_editingPoi != null)
-        {
-            <MudTextField T="string" Label="Địa chỉ quán ăn"
-                          Variant="Variant.Outlined"
-                          @bind-Value="_editingPoi.Address"
-                          Margin="Margin.Normal"
-                          Placeholder="Ví dụ: 534 Vĩnh Khánh, Phường 8, Quận 4"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.LocationOn"
-                          Class="mb-4" />
-
-            <MudSlider @bind-Value="_editingPoi.Radius" Min="10" Max="500" Step="10" Color="Color.Primary" Class="mb-4">
-                Bán kính Geofence: @_editingPoi.Radius mét
-            </MudSlider>
-
-            <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
-                <MudTabPanel Text="VI (Việt)">
-                    <MudTextField T="string" Label="Tiếng Việt" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_VI" Class="mb-2" />
-                    <MudTextField T="string" Label="Audio URL (VI) - Để trống nếu dùng AI TTS" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_VI" />
-                </MudTabPanel>
-                <MudTabPanel Text="EN (Anh)">
-                    <MudTextField T="string" Label="English" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_EN" Class="mb-2" />
-                    <MudTextField T="string" Label="Audio URL (EN)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_EN" />
-                </MudTabPanel>
-                <MudTabPanel Text="KO (Hàn)">
-                    <MudTextField T="string" Label="Korean" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_KO" Class="mb-2" />
-                    <MudTextField T="string" Label="Audio URL (KO)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_KO" />
-                </MudTabPanel>
-                <MudTabPanel Text="JA (Nhật)">
-                    <MudTextField T="string" Label="Japanese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_JA" Class="mb-2" />
-                    <MudTextField T="string" Label="Audio URL (JA)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_JA" />
-                </MudTabPanel>
-                <MudTabPanel Text="ZH (Trung)">
-                    <MudTextField T="string" Label="Chinese" Variant="Variant.Outlined" Lines="5" @bind-Value="_editingPoi.Description_ZH" Class="mb-2" />
-                    <MudTextField T="string" Label="Audio URL (ZH)" Variant="Variant.Outlined" @bind-Value="_editingPoi.AudioUrl_ZH" />
-                </MudTabPanel>
-            </MudTabs>
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="() => _editDialogVisible = false">Hủy</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SaveDescriptions">Lưu</MudButton>
-    </DialogActions>
-</MudDialog>
+        </MudPaper>
+    }
+</PortalGuard>
 
 @code {
-    private List<POI>? approvedPOIs;
-    private bool _editDialogVisible;
-    private POI? _editingPoi;
-    private DialogOptions _dialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true };
+    private List<PoiItem> _items = new();
+    private PoiItem? _selected;
+    private bool _loading = true;
+    private string _search = string.Empty;
+    private string _status = string.Empty;
+    private int _page = 1;
+    private int _totalPages = 1;
 
-    protected override async Task OnInitializedAsync() => await LoadData();
-
-    private async Task LoadData()
+    private async Task OnPageChanged(int newPage)
     {
-        // Admin tải trang 1 với limit lớn để thấy hết hoặc implement pagination trên UI sau
-        var result = await Http.GetFromJsonAsync<PagedResult<POI>>("api/POI/approved?page=1&limit=1000");
-        if (result != null)
-        {
-            approvedPOIs = result.Data;
-        }
+        _page = newPage;
+        await ReloadAsync();
     }
 
-    public class PagedResult<T>
+    private async Task ReloadAsync()
     {
-        public List<T> Data { get; set; } = new();
-        public int CurrentPage { get; set; }
-        public int TotalPages { get; set; }
-        public bool HasNext { get; set; }
-    }
-
-    private async Task ShowQRCode(POI poi)
-    {
-        var parameters = new DialogParameters<QRCodeDialog>();
-        parameters.Add(x => x.PoiName, poi.Name);
-        string base64 = QRCodeHelper.GenerateQRCode($"https://localhost:7118/?id={poi.Id}");
-        parameters.Add(x => x.QrCodeBase64, base64);
-
-        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.Small, FullWidth = true };
-        await DialogService.ShowAsync<QRCodeDialog>("Mã QR Thuyết Minh", parameters, options);
-    }
-
-    private void OpenEditDialog(POI poi)
-    {
-        _editingPoi = poi;
-        _editDialogVisible = true;
-    }
-
-    private async Task SaveDescriptions()
-    {
-        if (_editingPoi != null)
-        {
-            await Http.PutAsJsonAsync($"api/POI/{_editingPoi.Id}", _editingPoi);
-            Snackbar.Add("Đã lưu nội dung đa ngôn ngữ!", Severity.Success);
-            _editDialogVisible = false;
-            await LoadData();
-        }
-    }
-
-    private async Task UploadImage(InputFileChangeEventArgs e, POI poi)
-    {
-        var file = e.File;
-        if (file == null) return;
-
+        _loading = true;
         try
         {
-            using var content = new MultipartFormDataContent();
-            using var stream = file.OpenReadStream(1024 * 1024 * 5); // Tối đa 5MB
-            using var streamContent = new StreamContent(stream);
-            streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
-            content.Add(streamContent, "file", file.Name);
-
-            var response = await Http.PostAsync("api/POI/upload-image", content);
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadFromJsonAsync<UploadResult>();
-                if (result != null)
-                {
-                    poi.ImageUrl = result.ImageUrl;
-                    await Http.PutAsJsonAsync($"api/POI/{poi.Id}", poi);
-                    Snackbar.Add("Cập nhật ảnh thành công lên Cloudinary!", Severity.Success);
-                    await LoadData();
-                }
-            }
+            var result = await Http.GetFromJsonAsync<PagedResponse>($"api/poi?search={Uri.EscapeDataString(_search)}&status={Uri.EscapeDataString(_status)}&page={_page}&pageSize=12");
+            _items = result?.Items ?? new();
+            _totalPages = result?.TotalPages ?? 1;
         }
         catch (Exception ex)
         {
-            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error loading POIs: {ex}");
+            Snackbar.Add("Lỗi tải dữ liệu POI. Vui lòng kiểm tra lại kết nối.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
         }
     }
 
-    private class UploadResult { public string ImageUrl { get; set; } = ""; }
+    private async Task LoadAfterAuthAsync(SessionUser user)
+    {
+        await ReloadAsync();
+        StateHasChanged();
+    }
+
+    private void SelectPoi(PoiItem item)
+    {
+        _selected = new PoiItem
+        {
+            Id = item.Id,
+            Name = item.Name,
+            Address = item.Address,
+            SourceDescription = item.SourceDescription,
+            Latitude = item.Latitude,
+            Longitude = item.Longitude,
+            Radius = item.Radius,
+            PriorityLevel = item.PriorityLevel,
+            BoostPriority = item.BoostPriority,
+            SubscriptionPackage = item.SubscriptionPackage,
+            ImageUrl = item.ImageUrl,
+        };
+    }
+
+    private async Task SaveSelectedAsync()
+    {
+        if (_selected == null) return;
+
+        var response = await Http.PutAsJsonAsync($"api/poi/{_selected.Id}", new
+        {
+            _selected.Name,
+            _selected.Address,
+            SourceLanguage = "vi",
+            SourceDescription = _selected.SourceDescription,
+            MerchantNote = _selected.SourceDescription,
+            _selected.Latitude,
+            _selected.Longitude,
+            _selected.Radius,
+            _selected.PriorityLevel,
+            _selected.BoostPriority,
+            _selected.SubscriptionPackage,
+            _selected.ImageUrl,
+        });
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Đã lưu POI.", Severity.Success);
+            await ReloadAsync();
+            return;
+        }
+
+        Snackbar.Add("Lưu POI thất bại.", Severity.Error);
+    }
+
+    private async Task SubmitSelectedAsync()
+    {
+        if (_selected == null) return;
+        var response = await Http.PostAsync($"api/poi/{_selected.Id}/submit", null);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Đã submit lại POI.", Severity.Success);
+            await ReloadAsync();
+            return;
+        }
+
+        Snackbar.Add("Submit POI thất bại.", Severity.Error);
+    }
+
+    private string GetQrUrl(string id) => $"{Config["FrontendUrls:WebQrBaseUrl"]}/poi/{id}";
+
+    private sealed class PagedResponse
+    {
+        public List<PoiItem> Items { get; set; } = new();
+        public int TotalPages { get; set; }
+    }
+
+    private sealed class PoiItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string SubscriptionPackage { get; set; } = string.Empty;
+        public int CountedQrScanCount { get; set; }
+        public int CountedTtsPlayCount { get; set; }
+        public string SourceDescription { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Radius { get; set; }
+        public int PriorityLevel { get; set; }
+        public int BoostPriority { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+    }
 }

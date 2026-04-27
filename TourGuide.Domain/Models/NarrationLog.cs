@@ -7,24 +7,26 @@ public class NarrationLog
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; }
+    public string Id { get; set; } = string.Empty;
+
+    public string UserId { get; set; } = string.Empty;
+    public string VisitorId { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
 
     [BsonRepresentation(BsonType.ObjectId)]
-    public string UserId { get; set; }
+    public string PoiId { get; set; } = string.Empty;
 
     [BsonRepresentation(BsonType.ObjectId)]
-    public string PoiId { get; set; }
+    public string OwnerId { get; set; } = string.Empty;
 
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string? OwnerId { get; set; } // Để dễ query doanh thu B2B
-
-    public string TriggerType { get; set; } = "Geofence"; // Geofence / QRCode / Manual
-    
-    public string ListenStatus { get; set; } = "Completed"; // Completed / Skipped / Partial
-
-    public int DwellTime { get; set; } = 0; // Thời gian nán lại (giây)
-
-    public DateTime StartedAt { get; set; }
-    public DateTime EndedAt { get; set; }
+    public string TriggerSource { get; set; } = "WebQR";
+    public string WindowKey { get; set; } = string.Empty;
+    public bool Counted { get; set; }
+    public string ListenStatus { get; set; } = NarrationStatuses.Started;
+    public int DwellTime { get; set; }
+    public DateTime StartedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? EndedAt { get; set; }
+    public DateTime OccurredAt { get; set; } = DateTime.UtcNow;
+    public string ErrorCode { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

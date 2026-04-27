@@ -1,0 +1,213 @@
+@page "/merchant/pois"
+@layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
+@rendermode InteractiveServer
+@using TourGuide.WebAdmin.Components.Shared
+@using TourGuide.WebAdmin.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PortalGuard RequiredRole="Merchant" RedirectTo="/merchant/login" OnAuthorized="LoadAfterAuthAsync">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <MudText Typo="Typo.h4">Quản lý POI của owner</MudText>
+            <MudText Typo="Typo.body2">Chỉnh nội dung nguồn, kiểm tra trạng thái và gửi POI lên admin duyệt.</MudText>
+        </div>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/merchant/register">Tạo POI</MudButton>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+            @if (_pois.Count == 0)
+            {
+                <MudAlert Severity="Severity.Info">Owner này chưa có POI nào. Hãy tạo POI đầu tiên.</MudAlert>
+            }
+            else
+            {
+                <MudTable Items="_pois" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Tên quán</MudTh>
+                        <MudTh>Trạng thái</MudTh>
+                        <MudTh>Gói</MudTh>
+                        <MudTh>QR/TTS</MudTh>
+                        <MudTh>Hành động</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd><MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@context.Status</MudChip></MudTd>
+                        <MudTd>@context.SubscriptionPackage</MudTd>
+                        <MudTd>@context.CountedQrScanCount / @context.CountedTtsPlayCount</MudTd>
+                        <MudTd>
+                            <div class="d-flex gap-2">
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" OnClick="() => SelectPoi(context)">Sửa</MudButton>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Secondary" OnClick="() => SubmitAsync(context.Id)">Gửi duyệt</MudButton>
+                            </div>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudPaper>
+
+        @if (_selected != null)
+        {
+            <MudPaper Class="pa-6 mt-6 glass-panel" Style="border-radius: 14px;">
+                <MudText Typo="Typo.h6" Class="mb-4">Cập nhật POI</MudText>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudTextField @bind-Value="_selected.Name" Label="Tên quán" Variant="Variant.Outlined" Class="mb-4" />
+                        <MudTextField @bind-Value="_selected.Address" Label="Địa chỉ" Variant="Variant.Outlined" Class="mb-4" />
+                        <MudTextField @bind-Value="_selected.SourceDescription" Label="Nội dung nguồn" Variant="Variant.Outlined" Lines="6" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudNumericField T="double" @bind-Value="_selected.Latitude" Label="Latitude" Variant="Variant.Outlined" Class="mb-4" />
+                        <MudNumericField T="double" @bind-Value="_selected.Longitude" Label="Longitude" Variant="Variant.Outlined" Class="mb-4" />
+                        <MudSlider @bind-Value="_selected.Radius" Min="10" Max="500" Step="10" Color="Color.Primary" Class="mb-4">Radius: @_selected.Radius m</MudSlider>
+                        <MudSelect T="string" @bind-Value="_selected.SubscriptionPackage" Label="Gói dịch vụ" Variant="Variant.Outlined" Class="mb-4">
+                            <MudSelectItem Value="@("Basic")">Basic</MudSelectItem>
+                            <MudSelectItem Value="@("Premium")">Premium</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                </MudGrid>
+
+                <div class="d-flex gap-3 mt-4">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Lưu</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="() => SubmitAsync(_selected.Id)">Gửi duyệt</MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="ClearSelection">Đóng</MudButton>
+                </div>
+            </MudPaper>
+        }
+    }
+</PortalGuard>
+
+@code {
+    private List<PoiRow> _pois = new();
+    private PoiRow? _selected;
+    private bool _loading = true;
+    private string _ownerId = "me";
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        try
+        {
+            _pois = await Http.GetFromJsonAsync<List<PoiRow>>($"api/poi/owner/{_ownerId}") ?? new();
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Không tải được danh sách POI của owner. Vui lòng đăng nhập lại hoặc thử lại sau.", Severity.Error);
+            _pois = new();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadAfterAuthAsync(SessionUser user)
+    {
+        _ownerId = string.IsNullOrWhiteSpace(user.Id) ? "me" : user.Id;
+        await ReloadAsync();
+        StateHasChanged();
+    }
+
+    private void SelectPoi(PoiRow row)
+    {
+        _selected = new PoiRow
+        {
+            Id = row.Id,
+            Name = row.Name,
+            Address = row.Address,
+            SourceDescription = row.SourceDescription,
+            Latitude = row.Latitude,
+            Longitude = row.Longitude,
+            Radius = row.Radius,
+            PriorityLevel = row.PriorityLevel,
+            BoostPriority = row.BoostPriority,
+            SubscriptionPackage = row.SubscriptionPackage,
+            ImageUrl = row.ImageUrl,
+        };
+    }
+
+    private void ClearSelection()
+    {
+        _selected = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_selected == null)
+        {
+            return;
+        }
+
+        var response = await Http.PutAsJsonAsync($"api/poi/{_selected.Id}", new
+        {
+            _selected.Name,
+            _selected.Address,
+            SourceLanguage = "vi",
+            SourceDescription = _selected.SourceDescription,
+            MerchantNote = _selected.SourceDescription,
+            _selected.Latitude,
+            _selected.Longitude,
+            _selected.Radius,
+            _selected.PriorityLevel,
+            _selected.BoostPriority,
+            _selected.SubscriptionPackage,
+            _selected.ImageUrl,
+        });
+
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Đã lưu POI.", Severity.Success);
+            await ReloadAsync();
+            return;
+        }
+
+        Snackbar.Add("Không thể lưu POI.", Severity.Error);
+    }
+
+    private async Task SubmitAsync(string id)
+    {
+        var response = await Http.PostAsync($"api/poi/{id}/submit", null);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Đã gửi POI lên duyệt.", Severity.Success);
+            await ReloadAsync();
+            return;
+        }
+
+        Snackbar.Add("Gửi duyệt thất bại.", Severity.Error);
+    }
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "Approved" => Color.Success,
+        "Rejected" => Color.Error,
+        "Submitted" => Color.Warning,
+        _ => Color.Default,
+    };
+
+    private sealed class PoiRow
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string SubscriptionPackage { get; set; } = string.Empty;
+        public int CountedQrScanCount { get; set; }
+        public int CountedTtsPlayCount { get; set; }
+        public string SourceDescription { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Radius { get; set; }
+        public int PriorityLevel { get; set; }
+        public int BoostPriority { get; set; }
+        public string ImageUrl { get; set; } = string.Empty;
+    }
+}

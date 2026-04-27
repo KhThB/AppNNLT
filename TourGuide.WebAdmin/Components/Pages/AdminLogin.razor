@@ -1,0 +1,55 @@
+@page "/admin/login"
+@using Blazored.LocalStorage
+@using TourGuide.WebAdmin.Models
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="min-height: 78vh;">
+    <MudPaper Elevation="3" Class="pa-8 glass-panel" Style="width: 100%; border-radius: 16px;">
+        <MudText Typo="Typo.h4" Class="gradient-text" Align="Align.Center">Admin Portal</MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-6">Đăng nhập để quản trị owner, POI, audit và analytics.</MudText>
+
+        <MudTextField @bind-Value="_phone" Label="Tài khoản" Variant="Variant.Outlined" Class="mb-4" />
+        <MudTextField @bind-Value="_password" Label="Mật khẩu" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-6" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" OnClick="LoginAsync">
+            Đăng nhập
+        </MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _phone = string.Empty;
+    private string _password = string.Empty;
+
+    private async Task LoginAsync()
+    {
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/auth/admin/login", new { Phone = _phone, Password = _password });
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Đăng nhập thất bại.", Severity.Error);
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+            if (result == null)
+            {
+                Snackbar.Add("Không đọc được phản hồi đăng nhập.", Severity.Error);
+                return;
+            }
+
+            await LocalStorage.SetItemAsync("authToken", result.Token);
+            await LocalStorage.SetItemAsync("userId", result.User.Id);
+            await LocalStorage.SetItemAsync("userRole", result.User.Role);
+            await LocalStorage.SetItemAsync("userName", result.User.FullName);
+            Navigation.NavigateTo("/admin/dashboard", true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

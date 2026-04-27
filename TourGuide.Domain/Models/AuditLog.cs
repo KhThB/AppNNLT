@@ -1,26 +1,21 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
-using System.Text.Json;
+
 namespace TourGuide.Domain.Models;
 
 public class AuditLog
 {
     [BsonId]
     [BsonRepresentation(BsonType.ObjectId)]
-    public string Id { get; set; }
+    public string Id { get; set; } = string.Empty;
 
-    // Loại hành động: "QR_SCANNED", "POI_APPROVED", "USER_PREMIUM_UPGRADED"
-    public string ActionType { get; set; } = "";
-
-    [BsonRepresentation(BsonType.ObjectId)]
-    public string UserId { get; set; } = ""; // Ai là người làm?
-
-    public string TargetId { get; set; } = ""; // Tác động lên cái gì? (Ví dụ: ID của quán)
-
-    // BsonDocument cho phép bạn ném bất kỳ dữ liệu JSON nào vào đây mà không cần định nghĩa trước
-    public BsonDocument Details { get; set; } = new BsonDocument();
-
-    public string? IPAddress { get; set; }  // Dùng IP để chặn spam quét QR
-
+    public string ActionType { get; set; } = string.Empty;
+    public string ActorUserId { get; set; } = string.Empty;
+    public string ActorRole { get; set; } = string.Empty;
+    public string TargetType { get; set; } = string.Empty;
+    public string TargetId { get; set; } = string.Empty;
+    public BsonDocument Details { get; set; } = new();
+    public string IPAddress { get; set; } = string.Empty;
+    public string UserAgent { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 }

@@ -74,3 +74,27 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+.nav-button {
+    background: transparent;
+    border: 0;
+    color: #d7d7d7;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+}
+
+.nav-button:hover {
+    color: #fff;
+}
+
+.heatmap-empty-state {
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+    color: #334155;
+    font: 500 13px/1.4 'Inter', Helvetica, Arial, sans-serif;
+    max-width: 260px;
+    padding: 10px 12px;
+}

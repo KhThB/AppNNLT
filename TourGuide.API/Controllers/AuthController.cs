@@ -1,127 +1,59 @@
-using CloudinaryDotNet.Core;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.IdentityModel.Tokens;
-using MongoDB.Driver;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using TourGuide.API.Contracts;
+using TourGuide.API.Services.Abstractions;
 using TourGuide.Domain.Models;
 
-namespace TourGuide.API.Controllers
+namespace TourGuide.API.Controllers;
+
+[ApiController]
+[Route("api/auth")]
+public sealed class AuthController : ControllerBase
 {
-    // Removed the redundant outer AuthController class
-    [ApiController]
-    [Route("api/[controller]")]
-    public class AuthController : ControllerBase
+    private readonly IAuthService _authService;
+
+    public AuthController(IAuthService authService)
     {
-        private readonly IMongoCollection<User> _users;
-        private readonly IConfiguration _config;
-
-        public AuthController(IMongoDatabase db, IConfiguration config)
-        {
-            _users = db.GetCollection<User>("Users");
-            _config = config;
-        }
-
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] User user)
-        {
-            // Kiểm tra xem số điện thoại đã tồn tại chưa
-            var existing = await _users.Find(u => u.Phone == user.Phone).FirstOrDefaultAsync();
-            if (existing != null) return BadRequest("Số điện thoại đã được đăng ký.");
-
-            // Băm mật khẩu trước khi lưu
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            await _users.InsertOneAsync(user);
-            return Ok(new { message = "Đăng ký thành công." });
-        }
-
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest request)
-        {
-            var user = await _users.Find(u => u.Phone == request.Phone).FirstOrDefaultAsync();
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-                return Unauthorized("Sai số điện thoại hoặc mật khẩu.");
-
-            // Tạo Token
-            var token = GenerateJwtToken(user);
-
-            // Trả về Token và thông tin cơ bản (không trả về PasswordHash)
-            return Ok(new
-            {
-                Token = token,
-                User = new { user.Id, user.FullName, user.Phone, user.Role }
-            });
-        }
-
-        private string GenerateJwtToken(User user)
-        {
-            var jwtKey = _config["Jwt:Key"];
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey!));
-            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-            // Gắn thông tin nhận diện vào trong Token
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id),
-                new Claim(ClaimTypes.Name, user.Phone),
-                new Claim(ClaimTypes.Role, user.Role)
-            };
-
-            var token = new JwtSecurityToken(
-                issuer: _config["Jwt:Issuer"],
-                audience: _config["Jwt:Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddDays(7), // Token sống 7 ngày
-                signingCredentials: credentials);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
-        }
-        [HttpPost("social-login")]
-        public async Task<IActionResult> SocialLogin([FromBody] SocialLoginRequest request)
-        {
-            if (string.IsNullOrEmpty(request.Provider) || string.IsNullOrEmpty(request.ProviderId))
-                return BadRequest("Thiếu thông tin đăng nhập mxh.");
-
-            // 1. Kiểm tra xem user này đã tồn tại chưa (dựa trên ProviderId)
-            var user = await _users.Find(u => u.ProviderId == request.ProviderId && u.AuthProvider == request.Provider).FirstOrDefaultAsync();
-
-            // 2. Nếu chưa tồn tại, tự động tạo tài khoản mới cho họ
-            if (user == null)
-            {
-                user = new User
-                {
-                    AuthProvider = request.Provider,
-                    ProviderId = request.ProviderId,
-                    FullName = request.FullName ?? "Người dùng ẩn danh",
-                    Email = request.Email ?? "",
-                    Role = "User" // Luôn set là khách du lịch
-                };
-                await _users.InsertOneAsync(user);
-            }
-
-            // 3. Cấp Token của hệ thống
-            var token = GenerateJwtToken(user);
-            return Ok(new
-            {
-                Token = token,
-                User = new { user.Id, user.FullName, user.Email, user.Role, user.AuthProvider }
-            });
-        }
+        _authService = authService;
     }
 
-    // Lớp phụ để hứng dữ liệu đăng nhập
-    public class LoginRequest
+    [HttpPost("admin/login")]
+    public async Task<ActionResult<AuthResponse>> AdminLogin([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        public string Phone { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
+        return Ok(await _authService.LoginAsync(request, KnownRoles.Admin, cancellationToken));
     }
 
-    public class SocialLoginRequest
+    [HttpPost("merchant/login")]
+    public async Task<ActionResult<AuthResponse>> MerchantLogin([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
-        public string Provider { get; set; } = "Google"; // Google / Facebook / Apple
-        public string ProviderId { get; set; } = string.Empty; // Mã ID định danh từ bên thứ 3
-        public string? FullName { get; set; }
-        public string? Email { get; set; }
+        return Ok(await _authService.LoginAsync(request, KnownRoles.Merchant, cancellationToken));
+    }
+
+    [HttpPost("merchant/register")]
+    public async Task<ActionResult<AuthResponse>> MerchantRegister([FromBody] MerchantRegisterRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await _authService.RegisterMerchantAsync(request, cancellationToken));
+    }
+
+    [HttpPost("social-login")]
+    public async Task<ActionResult<AuthResponse>> SocialLoginContract([FromBody] SocialLoginContract request, CancellationToken cancellationToken)
+    {
+        return Ok(await _authService.AcceptSocialContractAsync(request, cancellationToken));
+    }
+
+    [Authorize]
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(CancellationToken cancellationToken)
+    {
+        await _authService.LogoutAsync(User, cancellationToken);
+        return NoContent();
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<SessionUserResponse>> Me(CancellationToken cancellationToken)
+    {
+        var me = await _authService.GetCurrentAsync(User, cancellationToken);
+        return me == null ? Unauthorized() : Ok(me);
     }
 }

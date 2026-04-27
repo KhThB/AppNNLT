@@ -40,6 +40,55 @@ window.renderClusterMap = (mapId, points) => {
         console.log("ClusterMap chưa sẵn sàng.", e);
     }
 };
+window.renderHeatmapMap = (mapId, points) => {
+    const el = document.getElementById(mapId);
+    if (!el || typeof L === 'undefined') {
+        return;
+    }
+
+    if (el._leaflet_id) {
+        el._leaflet_id = null;
+        el.innerHTML = "";
+    }
+
+    if (window.heatmapMap) {
+        window.heatmapMap.remove();
+    }
+
+    window.heatmapMap = L.map(mapId).setView([10.7628, 106.7005], 14);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.heatmapMap);
+
+    if (!points || points.length === 0) {
+        const emptyControl = L.control({ position: 'topright' });
+        emptyControl.onAdd = function () {
+            const div = L.DomUtil.create('div', 'heatmap-empty-state');
+            div.innerText = 'Chưa có dữ liệu tracking trong khung thời gian này';
+            return div;
+        };
+        emptyControl.addTo(window.heatmapMap);
+        setTimeout(() => window.heatmapMap.invalidateSize(), 150);
+        return;
+    }
+
+    const maxIntensity = Math.max(1, ...(points || []).map(p => p.intensity || p.Intensity || 1));
+    (points || []).forEach(point => {
+        const lat = point.latitude ?? point.Latitude;
+        const lng = point.longitude ?? point.Longitude;
+        const intensity = point.intensity ?? point.Intensity ?? 1;
+        const radius = 8 + ((intensity / maxIntensity) * 22);
+        const opacity = 0.2 + ((intensity / maxIntensity) * 0.6);
+
+        L.circleMarker([lat, lng], {
+            radius,
+            fillColor: '#ef4444',
+            color: '#b91c1c',
+            weight: 1,
+            fillOpacity: opacity
+        }).bindTooltip(`Users: ${intensity}`).addTo(window.heatmapMap);
+    });
+
+    setTimeout(() => window.heatmapMap.invalidateSize(), 150);
+};
 window.initStaticMap = function (mapId, lat, lng, title) {
     var container = document.getElementById(mapId);
     if (!container) return;

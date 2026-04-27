@@ -9,25 +9,16 @@ public class User
     [BsonRepresentation(BsonType.ObjectId)]
     public string Id { get; set; } = string.Empty;
 
-    // --- CÁC TRƯỜNG ĐĂNG NHẬP (Dành cho Merchant Portal & Local Auth) ---
     public string Phone { get; set; } = string.Empty;
     public string PasswordHash { get; set; } = string.Empty;
-
-    // --- CÁC TRƯỜNG ĐĂNG NHẬP MẠNG XÃ HỘI (Google/Facebook/Apple) ---
-    public string AuthProvider { get; set; } = "Local"; // Local, Google, Facebook, Apple
-    public string ProviderId { get; set; } = string.Empty; // Token ID hoặc Google Account ID
-
-    // --- CÁC TRƯỜNG THÔNG TIN CƠ BẢN ---
+    public string AuthProvider { get; set; } = "Local";
+    public string ProviderId { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
-
-    // Phân quyền: "Admin", "Merchant" (Chủ quán), "User" (Khách du lịch)
-    // Để mặc định là Merchant cho trang đăng ký chủ quán
-    public string Role { get; set; } = "Merchant";
-
-    // --- TÍNH NĂNG B2C (Dành cho app Khách du lịch) ---
-    public bool IsPremium { get; set; } = false;
+    public string Role { get; set; } = KnownRoles.User;
+    public bool IsActive { get; set; } = true;
+    public bool IsPremium { get; set; }
     public DateTime? PremiumExpireDate { get; set; }
-
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? LastLoginAt { get; set; }
 }

@@ -1,149 +1,90 @@
-﻿@page "/poi/{Id}"
-@rendermode InteractiveServer
+@page "/poi/{Id}"
+@using System.Text.Json
 @using TourGuide.Domain.Models
 @inject HttpClient Http
-@inject IJSRuntime JS
-@inject ISnackbar Snackbar
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="pa-0" Style="background-color: #f8f9fa; min-height: 100vh;">
-    @if (_poi == null)
-    {
-        <div class="d-flex justify-center align-center" style="height: 100vh;">
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-            <MudText Class="ml-3">Đang tải thông tin quán...</MudText>
+@if (!_loaded)
+{
+    <div style="min-height:100vh; display:grid; place-items:center;">Đang tải dữ liệu...</div>
+}
+else if (_poi == null)
+{
+    <div class="not-found">
+        <h2>Không tìm thấy nội dung</h2>
+        <p>POI này chưa được duyệt hoặc mã QR không hợp lệ.</p>
+    </div>
+}
+else
+{
+    var payload = JsonSerializer.Serialize(_poi, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+    var apiBase = Http.BaseAddress?.ToString() ?? "/";
+    var imageUrl = string.IsNullOrWhiteSpace(_poi.ImageUrl)
+        ? "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+        : _poi.ImageUrl;
+
+    <img src="@imageUrl" class="hero-bg" alt="@_poi.Name" />
+    <div class="hero-overlay"></div>
+
+    <div class="glass-panel">
+        <div id="qr-banner" class="qr-banner" style="display:none;"></div>
+        <h1 class="gradient-text">@_poi.Name</h1>
+        <div class="address-text">@_poi.Address</div>
+
+        <div class="lang-selector" id="lang-selector"></div>
+        <div class="desc-text" id="desc-text"></div>
+
+        <div class="audio-container">
+            <button id="play-audio-btn" class="hero-action">Nghe thuyết minh</button>
+            <button id="stop-audio-btn" class="hero-secondary" style="display:none;">Dừng</button>
         </div>
-    }
-    else
-    {
-        <div style="width: 100%; height: 250px; background-color: #eee;">
-            @if (!string.IsNullOrEmpty(_poi.ImageUrl))
-            {
-                <img src="@(_poi.ImageUrl.StartsWith("http") ? _poi.ImageUrl : $"{Http.BaseAddress}{_poi.ImageUrl.TrimStart('/')}")" 
-                     style="width: 100%; height: 100%; object-fit: cover;" alt="@_poi.Name" />
-            }
+
+        <div class="map-section">
+            <h3>Vị trí quán ăn</h3>
+            <div id="mini-map"></div>
+            <button id="directions-btn" class="directions-btn">Chỉ đường đến quán</button>
         </div>
+    </div>
 
-        <div class="pa-6 text-center">
-            <MudText Typo="Typo.h4" Style="font-weight: 800; color: #333;" Class="mb-2">@_poi.Name</MudText>
+    <script>
+        window.tourGuideQrPage?.init({
+            apiBase: "@apiBase",
+            poiId: "@_poi.Id",
+            payload: @((MarkupString)payload)
+        });
+    </script>
+}
 
-            @if (!string.IsNullOrEmpty(_poi.Address))
-            {
-                <div class="d-flex align-center justify-center mb-4" style="color: #64748b;">
-                    <MudIcon Icon="@Icons.Material.Filled.Place" Size="Size.Small" Class="mr-1" />
-                    <MudText Typo="Typo.body2">@_poi.Address</MudText>
-                </div>
-            }
-
-            @if (_poi.Location?.Coordinates != null && _poi.Location.Coordinates.Length == 2)
-            {
-                var lon = _poi.Location.Coordinates[0].ToString(System.Globalization.CultureInfo.InvariantCulture);
-                var lat = _poi.Location.Coordinates[1].ToString(System.Globalization.CultureInfo.InvariantCulture);
-                
-                // ĐÃ SỬA LỖI LINK: Dùng chuẩn link Search của Google Maps để tự động mở App trên điện thoại
-                var mapUrl = $"https://www.google.com/maps/search/?api=1&query={lat},{lon}";
-                
-                <MudButton Href="@mapUrl" Target="_blank" Variant="Variant.Filled" Color="Color.Info" StartIcon="@Icons.Material.Filled.Map" Class="mb-6 w-100" Style="border-radius: 8px;">
-                    🗺️ Chỉ đường Map
-                </MudButton>
-            }
-
-            <MudPaper Elevation="0" Class="pa-5 text-left" Style="background: #f1f3f5; border-radius: 12px; border: 1px solid #e9ecef;">
-                
-                <MudSelect T="string" Value="@_currentLang" ValueChanged="OnLanguageChanged" Variant="Variant.Outlined" Class="mb-4 text-center" Style="background: white;">
-                    <MudSelectItem Value="@("vi-VN")">🇻🇳 Tiếng Việt</MudSelectItem>
-                    <MudSelectItem Value="@("en-US")">🇬🇧 Tiếng Anh</MudSelectItem>
-                    <MudSelectItem Value="@("ko-KR")">🇰🇷 Tiếng Hàn</MudSelectItem>
-                    <MudSelectItem Value="@("ja-JP")">🇯🇵 Tiếng Nhật</MudSelectItem>
-                    <MudSelectItem Value="@("zh-CN")">🇨🇳 Tiếng Trung</MudSelectItem>
-                </MudSelect>
-
-                <MudText Typo="Typo.body1" Style="color: #555; line-height: 1.6; white-space: pre-wrap;" Class="mb-6">
-                    @_displayedText
-                </MudText>
-
-                <div class="d-flex gap-3">
-                    <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="PlayAudio" Class="flex-grow-1" Style="border-radius: 8px;">
-                        ▶ Nghe
-                    </MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="PauseAudio" Class="flex-grow-1" Style="border-radius: 8px;">
-                        ⏸ Tạm dừng
-                    </MudButton>
-                </div>
-            </MudPaper>
-        </div>
-    }
-</MudContainer>
 @code {
-    [Parameter] public string? Id { get; set; }
-    
-    private POI? _poi;
-    private string _currentLang = "vi-VN";
-    private string _displayedText = "";
+    [Parameter] public string Id { get; set; } = string.Empty;
+    private PoiDetailVm? _poi;
+    private bool _loaded;
 
     protected override async Task OnInitializedAsync()
     {
-        try
+        var response = await Http.GetAsync($"api/poi/details/{Id}");
+        if (response.IsSuccessStatusCode)
         {
-            _poi = await Http.GetFromJsonAsync<POI>($"api/POI/details/{Id}");
-            if (_poi != null)
-            {
-                UpdateDisplayedText();
-                
-                // Gọi API Tracking an toàn, không làm sập luồng chính
-                await SendTrackingAsync("ScanQR");
-            }
+            _poi = await response.Content.ReadFromJsonAsync<PoiDetailVm>();
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Lỗi tải dữ liệu: {ex.Message}", Severity.Error);
-        }
+
+        _loaded = true;
     }
 
-    private void OnLanguageChanged(string newLang)
+    private sealed class PoiDetailVm
     {
-        _currentLang = newLang;
-        UpdateDisplayedText();
-        JS.InvokeVoidAsync("tts.stop");
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public Dictionary<string, PoiLocalizedVm> Contents { get; set; } = new();
     }
 
-    private void UpdateDisplayedText()
+    private sealed class PoiLocalizedVm
     {
-        if (_poi == null) return;
-        
-        _displayedText = _currentLang switch
-        {
-            "vi-VN" => string.IsNullOrEmpty(_poi.Description_VI) ? "(Chưa có bài thuyết minh tiếng Việt)" : _poi.Description_VI,
-            "en-US" => string.IsNullOrEmpty(_poi.Description_EN) ? "(No English description available)" : _poi.Description_EN,
-            "ko-KR" => string.IsNullOrEmpty(_poi.Description_KO) ? "(한국어 설명이 없습니다)" : _poi.Description_KO,
-            "ja-JP" => string.IsNullOrEmpty(_poi.Description_JA) ? "(日本語の説明はありません)" : _poi.Description_JA,
-            "zh-CN" => string.IsNullOrEmpty(_poi.Description_ZH) ? "(暂无中文说明)" : _poi.Description_ZH,
-            _ => _poi.Description_VI
-        };
-    }
-
-    private async Task PlayAudio()
-    {
-        if (_displayedText.Contains("(Chưa có") || _displayedText.Contains("(No") || _displayedText.Contains("(暂无")) return;
-        
-        await JS.InvokeVoidAsync("tts.play", _displayedText, _currentLang);
-        await SendTrackingAsync("PlayTTS");
-    }
-
-    private async Task PauseAudio()
-    {
-        await JS.InvokeVoidAsync("tts.pauseResume");
-    }
-
-    // Hàm Tracking an toàn: Lỗi cũng không báo ra màn hình làm phiền khách
-    private async Task SendTrackingAsync(string actionType)
-    {
-        try
-        {
-            await Http.PostAsJsonAsync("api/Tracking", new { PoiId = _poi?.Id, ActionType = actionType });
-        }
-        catch
-        {
-            // Âm thầm bỏ qua nếu lỗi mạng
-        }
+        public string Description { get; set; } = string.Empty;
+        public string AudioUrl { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
     }
 }

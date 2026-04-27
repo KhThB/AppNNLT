@@ -1,238 +1,27 @@
 @page "/"
-@using TourGuide.Domain.Models
-@inject HttpClient Http
 @inject NavigationManager Navigation
 
-<PageTitle>Smart Tour Guide - Quét Mã QR</PageTitle>
-
-@if (_isLoading)
+@if (!string.IsNullOrWhiteSpace(id))
 {
-    <div class="loading-spinner">Đang tải dữ liệu...</div>
-}
-else if (_poi == null)
-{
-    <div class="not-found">
-        <h2>Không tìm thấy thông tin</h2>
-        <p>Mã QR không hợp lệ hoặc quán ăn này không tồn tại.</p>
-    </div>
-}
-else
-{
-    var poiDataJson = System.Text.Json.JsonSerializer.Serialize(new
-    {
-        VI = new { desc = _poi.Description_VI, audio = _poi.AudioUrl_VI },
-        EN = new { desc = _poi.Description_EN, audio = _poi.AudioUrl_EN },
-        KO = new { desc = _poi.Description_KO, audio = _poi.AudioUrl_KO },
-        JA = new { desc = _poi.Description_JA, audio = _poi.AudioUrl_JA },
-        ZH = new { desc = _poi.Description_ZH, audio = _poi.AudioUrl_ZH }
-    });
-
-    // Truyền tọa độ POI xuống cho JS
-    var poiCoordsJson = "[]";
-    if(_poi.Location != null && _poi.Location.Coordinates != null && _poi.Location.Coordinates.Length == 2) {
-        poiCoordsJson = $"[{_poi.Location.Coordinates[1]}, {_poi.Location.Coordinates[0]}]"; // L.map expects [Lat, Lng], MongoDB is [Lng, Lat]
-    }
-
-    var bgImage = string.IsNullOrEmpty(_poi.ImageUrl) ? "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1000&q=80" : 
-                 (_poi.ImageUrl.StartsWith("http") ? _poi.ImageUrl : $"{Http.BaseAddress}{_poi.ImageUrl.TrimStart('/')}");
-
-    <img src="@bgImage" class="hero-bg" alt="Background" />
-    <div class="hero-overlay"></div>
-
-    <div class="glass-panel">
-        <h1 class="gradient-text">@_poi.Name</h1>
-        <div class="address-text">
-            <i class="fas fa-map-marker-alt"></i> @_poi.Address
-        </div>
-
-        <div class="lang-selector" id="lang-selector">
-            <button class="lang-btn active" data-lang="VI">Tiếng Việt</button>
-            <button class="lang-btn" data-lang="EN">English</button>
-            <button class="lang-btn" data-lang="KO">한국어</button>
-            <button class="lang-btn" data-lang="JA">日本語</button>
-            <button class="lang-btn" data-lang="ZH">中文</button>
-        </div>
-
-        <div class="desc-text" id="desc-text">
-            @(!string.IsNullOrEmpty(_poi.Description_VI) ? _poi.Description_VI : "Đang cập nhật nội dung...")
-        </div>
-
-        <div class="audio-container" style="text-align: center;">
-            <button id="play-audio-btn" style="width: 100%; padding: 14px; border-radius: 24px; border: none; font-size: 1.1rem; font-weight: bold; background: linear-gradient(135deg, #f59e0b 0%, #ea580c 100%); color: white; cursor: pointer; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-play-circle" style="font-size: 1.3rem;"></i> Phát Thuyết Minh AI
-            </button>
-            <button id="stop-audio-btn" style="display: none; width: 100%; padding: 14px; border-radius: 24px; border: 1px solid #ef4444; font-size: 1.1rem; font-weight: bold; background: transparent; color: #ef4444; cursor: pointer; margin-top: 10px; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fas fa-stop-circle" style="font-size: 1.3rem;"></i> Dừng
-            </button>
-        </div>
-
-        @* PHẦN BẢN ĐỒ VÀ LỘ TRÌNH *@
-        <div class="map-section">
-            <h3 style="font-size: 1.2rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">
-                Vị trí Quán ăn
-            </h3>
-            <div id="mini-map"></div>
-            <button id="directions-btn" class="directions-btn">
-                <i class="fas fa-directions"></i> Chỉ đường đến quán
-            </button>
-        </div>
+    <div style="padding: 24px; text-align: center;">
+        <p>Đang mở trang thuyết minh...</p>
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            var poiData = @((MarkupString)poiDataJson);
-            var poiCoords = @poiCoordsJson;
-            var poiName = "@_poi.Name";
-            
-            // --- 1. LOGIC AUDIO & TTS ---
-            var langBtns = document.querySelectorAll(".lang-btn");
-            var descText = document.getElementById("desc-text");
-            var playBtn = document.getElementById("play-audio-btn");
-            var stopBtn = document.getElementById("stop-audio-btn");
-            
-            var currentAudio = null;
-            var synth = window.speechSynthesis;
-            var hasLogged = false;
-
-            function stopAllAudio() {
-                if(currentAudio) {
-                    currentAudio.pause();
-                    currentAudio.currentTime = 0;
-                }
-                if(synth && synth.speaking) {
-                    synth.cancel();
-                }
-                playBtn.style.display = "flex";
-                stopBtn.style.display = "none";
-            }
-
-            langBtns.forEach(function(btn) {
-                btn.addEventListener("click", function() {
-                    langBtns.forEach(function(b) { b.classList.remove("active"); });
-                    this.classList.add("active");
-
-                    var lang = this.getAttribute("data-lang");
-                    var data = poiData[lang];
-                    if(data) {
-                        descText.innerText = data.desc || "Đang cập nhật nội dung...";
-                        stopAllAudio();
-                    }
-                });
-            });
-            
-            stopBtn.addEventListener("click", stopAllAudio);
-
-            playBtn.addEventListener("click", function() {
-                var activeLangBtn = document.querySelector(".lang-btn.active");
-                var lang = activeLangBtn ? activeLangBtn.getAttribute("data-lang") : "VI";
-                var data = poiData[lang];
-                
-                if(!data) return;
-
-                // FIX LOGGING: Truyền ActionType = "PlayTTS"
-                if(!hasLogged) {
-                    hasLogged = true;
-                    var poiId = new URLSearchParams(window.location.search).get("id");
-                    if(poiId) {
-                        fetch("https://localhost:7095/api/Tracking", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ PoiId: poiId, ActionType: "PlayTTS" })
-                        }).catch(e => console.log("Log error"));
-                    }
-                }
-
-                playBtn.style.display = "none";
-                stopBtn.style.display = "flex";
-
-                if (data.audio && data.audio.trim() !== "") {
-                    currentAudio = new Audio(data.audio);
-                    currentAudio.onended = stopAllAudio;
-                    currentAudio.play();
-                } else {
-                    var text = data.desc || "Không có nội dung";
-                    var utterance = new SpeechSynthesisUtterance(text);
-                    
-                    switch(lang) {
-                        case "VI": utterance.lang = "vi-VN"; break;
-                        case "EN": utterance.lang = "en-US"; break;
-                        case "KO": utterance.lang = "ko-KR"; break;
-                        case "JA": utterance.lang = "ja-JP"; break;
-                        case "ZH": utterance.lang = "zh-CN"; break;
-                    }
-                    
-                    utterance.onend = stopAllAudio;
-                    synth.speak(utterance);
-                }
-            });
-
-            // --- 2. LOGIC BẢN ĐỒ LEAFLET ---
-            if(poiCoords.length === 2 && typeof L !== 'undefined') {
-                var map = L.map('mini-map', {
-                    zoomControl: false,
-                    dragging: false, // Ngăn kéo map để tránh lỗi scroll trên di động
-                    scrollWheelZoom: false,
-                    doubleClickZoom: false
-                }).setView(poiCoords, 16);
-                
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-                
-                var marker = L.marker(poiCoords).addTo(map)
-                    .bindPopup("<b>" + poiName + "</b>").openPopup();
-            }
-
-            // --- 3. LOGIC CHỈ ĐƯỜNG (GOOGLE MAPS) ---
-            document.getElementById("directions-btn").addEventListener("click", function() {
-                if(poiCoords.length !== 2) {
-                    alert("Không có dữ liệu tọa độ của quán này.");
-                    return;
-                }
-                
-                var destLat = poiCoords[0];
-                var destLng = poiCoords[1];
-                
-                // Mở trực tiếp Google Maps với tham số điểm đến
-                // Trình duyệt trên đt sẽ tự động bật app Google Maps và tính lộ trình từ Vị trí hiện tại
-                var googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${destLat},${destLng}`;
-                window.open(googleMapsUrl, "_blank");
-            });
-        });
+        window.location.replace("/poi/@id");
     </script>
+}
+else
+{
+    <div style="min-height: 100vh; display: grid; place-items: center; background: #fff7ed; color: #7c2d12; padding: 24px;">
+        <div style="max-width: 560px; text-align: center;">
+            <h1 style="font-size: 2rem; margin-bottom: 12px;">TourGuide WebQR</h1>
+            <p style="line-height: 1.6;">Quét mã QR tại điểm đến để mở thuyết minh, bản đồ và nghe audio ngay trên trình duyệt.</p>
+        </div>
+    </div>
 }
 
 @code {
     [SupplyParameterFromQuery]
     public string? id { get; set; }
-
-    private POI? _poi;
-    private bool _isLoading = true;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (!string.IsNullOrEmpty(id))
-        {
-            try
-            {
-                var response = await Http.GetAsync($"api/POI/details/{id}");
-                if (response.IsSuccessStatusCode)
-                {
-                    _poi = await response.Content.ReadFromJsonAsync<POI>();
-                    
-                    // Ghi nhận QR Scan
-                    try
-                    {
-                        var scanReq = new { PoiId = id, ActionType = "ScanQR" };
-                        _ = Http.PostAsJsonAsync("api/Tracking", scanReq); // Fire and forget
-                    }
-                    catch { }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Lỗi fetch POI: " + ex.Message);
-            }
-        }
-        
-        _isLoading = false;
-    }
 }

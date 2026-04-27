@@ -9,4 +9,7 @@
   <Folder Name="/Shared/">
     <Project Path="TourGuide.Domain/TourGuide.Domain.csproj" />
   </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="TourGuide.Backend.Tests/TourGuide.Backend.Tests.csproj" />
+  </Folder>
 </Solution>

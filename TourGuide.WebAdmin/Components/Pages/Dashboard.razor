@@ -1,168 +1,180 @@
 @page "/"
+@page "/admin/dashboard"
 @page "/dashboard"
-@implements IDisposable
 @rendermode InteractiveServer
+@using TourGuide.WebAdmin.Components.Shared
+@using TourGuide.WebAdmin.Models
 @inject HttpClient Http
 @inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
-<MudText Typo="Typo.h4" GutterBottom="true">Dashboard Quản Trị</MudText>
-
-@if (stats == null)
-{
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-}
-else
-{
-    <MudGrid>
-        <MudItem xs="12" sm="3">
-            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
-                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Tổng Doanh Thu</MudText>
-                <MudText Typo="Typo.h5" Color="Color.Success">@stats.TotalRevenue.ToString("N0") VNĐ</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
-                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Lượt Quét QR</MudText>
-                <MudText Typo="Typo.h5">@stats.TotalQRScans</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
-                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Lượt Nghe TTS</MudText>
-                <MudText Typo="Typo.h5">@stats.TotalTTSPlays</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudPaper Elevation="2" Class="pa-4 d-flex flex-column align-center justify-center">
-                <MudText Typo="Typo.subtitle1" Color="Color.Secondary">Dwell Time (TB)</MudText>
-                <MudText Typo="Typo.h5" Color="Color.Info">@stats.AverageDwellTime</MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="12" sm="3">
-            <MudPaper Elevation="4" Class="pa-4 d-flex flex-column align-center justify-center" Style="background-color: #ffebee;">
-                <MudText Typo="Typo.subtitle1" Color="Color.Error" Style="font-weight: bold;">🔴 Đang Trực Tuyến</MudText>
-                <MudText Typo="Typo.h4" Color="Color.Error">@_onlineUsers</MudText>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-
-    <MudGrid Class="mt-4">
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" GutterBottom="true">Lượt quét QR (7 ngày qua)</MudText>
-                <MudChart T="double" ChartType="ChartType.Bar"
-                          ChartSeries="@Series"
-                          XAxisLabels="@stats.ChartLabels"
-                          Width="100%" Height="300px" />
-            </MudPaper>
-        </MudItem>
-
-        <MudItem xs="12" md="6">
-            <MudPaper Elevation="2" Class="pa-4">
-                <MudText Typo="Typo.h6" GutterBottom="true">Mật độ Quán Ăn (Cluster Map)</MudText>
-                <div id="heatmap" style="min-height: 300px; width: 100%; border-radius: 8px; border: 1px solid #ccc; z-index: 1;"></div>
-            </MudPaper>
-        </MudItem>
-    </MudGrid>
-}
-@code {
-    private DashboardStats? stats;
-    public List<ChartSeries<double>> Series = new();
-    
-    private int _onlineUsers = 0;
-    private System.Threading.Timer? _timer;
-    
-    // CỜ ĐÁNH DẤU BẢN ĐỒ
-    private bool _mapInitialized = false;
-
-    protected override async Task OnInitializedAsync()
+<PortalGuard RequiredRole="Admin" RedirectTo="/admin/login" OnAuthorized="LoadAfterAuthAsync">
+    @if (_loading)
     {
-        stats = await Http.GetFromJsonAsync<DashboardStats>("api/Analytics/dashboard-stats");
-        if (stats != null)
-        {
-            Series.Add(new ChartSeries<double>() { Name = "Lượt quét", Data = stats.ChartData });
-        }
-        
-        _timer = new System.Threading.Timer(async _ =>
-        {
-            await FetchOnlineCount();
-            await InvokeAsync(StateHasChanged);
-        }, null, 0, 5000);
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
     }
+    else if (_overview != null)
+    {
+        <MudText Typo="Typo.h4" GutterBottom="true">Dashboard quan tri</MudText>
+        <MudGrid Class="mb-6">
+            @foreach (var metric in _overview.Metrics)
+            {
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                        <MudText Typo="Typo.caption">@metric.Label</MudText>
+                        <MudText Typo="Typo.h4">@metric.Value</MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption">MRR</MudText>
+                    <MudText Typo="Typo.h4">@_overview.MonthlyRecurringRevenue.ToString("N0") VND</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption">Total Revenue</MudText>
+                    <MudText Typo="Typo.h4">@_overview.TotalRevenue.ToString("N0") VND</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
 
-    private async Task FetchOnlineCount()
+        <MudGrid Class="mb-6">
+            <MudItem xs="12" lg="7">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">QR trend 7 ngay</MudText>
+                    @RenderBars(_overview.QrTrend, "#1d4ed8")
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.h6" Class="mb-3">TTS trend 7 ngay</MudText>
+                    @RenderBars(_overview.TtsTrend, "#d97706")
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" lg="5">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Heatmap nguoi dung</MudText>
+                    <div id="admin-heatmap" style="height: 360px; min-height: 360px; border-radius: 12px;"></div>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+            <MudText Typo="Typo.h6" Class="mb-3">Recent audit</MudText>
+            <MudTable Items="_overview.RecentAuditLogs" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Action</MudTh>
+                    <MudTh>Role</MudTh>
+                    <MudTh>Target</MudTh>
+                    <MudTh>Description</MudTh>
+                    <MudTh>Time</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.ActionType</MudTd>
+                    <MudTd>@context.ActorRole</MudTd>
+                    <MudTd>@context.TargetType / @context.TargetId</MudTd>
+                    <MudTd>@context.Description</MudTd>
+                    <MudTd>@context.Timestamp.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</PortalGuard>
+
+@code {
+    private AdminOverview? _overview;
+    private List<HeatmapPoint> _heatmap = new();
+    private bool _loading = true;
+    private bool _mapRendered;
+
+    private async Task LoadAfterAuthAsync(SessionUser user)
     {
         try
         {
-            var res = await Http.GetFromJsonAsync<OnlineStat>("api/Tracking/online-count");
-            if (res != null) _onlineUsers = res.ActiveUsers;
+            _overview = await Http.GetFromJsonAsync<AdminOverview>("api/analytics/admin/overview");
+            _heatmap = await Http.GetFromJsonAsync<List<HeatmapPoint>>("api/analytics/admin/heatmap?hours=4") ?? new();
         }
-        catch { }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Khong tai duoc dashboard quan tri. Vui long dang nhap lai bang tai khoan admin.", Severity.Error);
+            _overview = new AdminOverview();
+            _heatmap = new();
+        }
+
+        _loading = false;
+        _mapRendered = false;
+        StateHasChanged();
     }
 
-    // HÀM NÀY ĐÃ ĐƯỢC SỬA LẠI LOGIC
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        // Khi stats ĐÃ CÓ DATA (khung div đã xuất hiện) VÀ bản đồ CHƯA ĐƯỢC VẼ
-        if (stats != null && !_mapInitialized)
+        if (!_loading && !_mapRendered)
         {
-            _mapInitialized = true; // Khóa lại, chỉ vẽ 1 lần duy nhất
-            await InitHeatmap();
+            _mapRendered = true;
+            await JS.InvokeVoidAsync("renderHeatmapMap", "admin-heatmap", _heatmap);
         }
     }
 
-    private async Task InitHeatmap()
+    private RenderFragment RenderBars(IReadOnlyList<TrendPoint> points, string color) => builder =>
     {
-        try
+        var max = Math.Max(1, points.Count == 0 ? 1 : points.Max(x => x.Value));
+        var seq = 0;
+        builder.OpenElement(seq++, "div");
+        builder.AddAttribute(seq++, "style", "display:grid; gap:10px;");
+        foreach (var point in points)
         {
-            await Task.Delay(100); // Đợi 1 chút xíu cho DOM ổn định
-
-            bool mapExists = false;
-            for (int i = 0; i < 10; i++)
-            {
-                mapExists = await JS.InvokeAsync<bool>("eval", "document.getElementById('heatmap') != null");
-                if (mapExists) break;
-                await Task.Delay(200);
-            }
-
-            if (mapExists)
-            {
-                // Lấy danh sách Quán ăn thật từ API để gắn ghim
-                var poiResponse = await Http.GetFromJsonAsync<TourGuide.WebAdmin.Components.Pages.POIManagement.PagedResult<TourGuide.Domain.Models.POI>>("api/POI/approved?page=1&limit=1000");
-                var points = new List<object>();
-
-                if(poiResponse != null && poiResponse.Data != null)
-                {
-                    foreach(var poi in poiResponse.Data)
-                    {
-                        if(poi.Location != null && poi.Location.Coordinates != null && poi.Location.Coordinates.Length == 2)
-                        {
-                            // Coordinates format is [Lng, Lat], Leaflet expects [Lat, Lng]
-                            points.Add(new object[] { poi.Location.Coordinates[1], poi.Location.Coordinates[0], poi.Name });
-                        }
-                    }
-                }
-
-                await JS.InvokeVoidAsync("renderClusterMap", "heatmap", points);
-            }
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "style", "display:grid; grid-template-columns:70px 1fr 60px; gap:12px; align-items:center;");
+            builder.AddContent(seq++, point.Label);
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "style", "background:#e2e8f0; height:12px; border-radius:999px; overflow:hidden;");
+            builder.OpenElement(seq++, "div");
+            builder.AddAttribute(seq++, "style", $"background:{color}; width:{Math.Round(point.Value / max * 100, 2)}%; height:12px;");
+            builder.CloseElement();
+            builder.CloseElement();
+            builder.AddContent(seq++, point.Value.ToString("N0"));
+            builder.CloseElement();
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine("Lỗi tải ClusterMap: " + ex.Message);
-        }
-    }
+        builder.CloseElement();
+    };
 
-    public void Dispose() => _timer?.Dispose();
-
-    public class DashboardStats
+    private sealed class AdminOverview
     {
+        public List<Metric> Metrics { get; set; } = new();
+        public decimal MonthlyRecurringRevenue { get; set; }
         public decimal TotalRevenue { get; set; }
-        public int TotalQRScans { get; set; }
-        public int TotalTTSPlays { get; set; }
-        public string AverageDwellTime { get; set; } = "0s";
-        public string[] ChartLabels { get; set; } = [];
-        public double[] ChartData { get; set; } = [];
+        public List<TrendPoint> QrTrend { get; set; } = new();
+        public List<TrendPoint> TtsTrend { get; set; } = new();
+        public List<AuditLogItem> RecentAuditLogs { get; set; } = new();
     }
-    
-    public class OnlineStat { public int ActiveUsers { get; set; } }
+
+    private sealed class Metric
+    {
+        public string Label { get; set; } = string.Empty;
+        public string Value { get; set; } = string.Empty;
+    }
+
+    private sealed class TrendPoint
+    {
+        public string Label { get; set; } = string.Empty;
+        public double Value { get; set; }
+    }
+
+    private sealed class AuditLogItem
+    {
+        public string ActionType { get; set; } = string.Empty;
+        public string ActorRole { get; set; } = string.Empty;
+        public string TargetType { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime Timestamp { get; set; }
+    }
+
+    private sealed class HeatmapPoint
+    {
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public int Intensity { get; set; }
+    }
 }

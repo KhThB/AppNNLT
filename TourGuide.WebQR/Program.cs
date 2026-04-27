@@ -1,23 +1,17 @@
-using MudBlazor.Services;
 using TourGuide.WebQR.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents();
-
-// Loại bỏ MudBlazor vì chúng ta dùng HTML tĩnh hoàn toàn
-// builder.Services.AddMudServices();
-
-// KẾT NỐI API: Cấu hình HttpClient trỏ về Backend Local
-builder.Services.AddScoped(sp => new HttpClient
+var backendBaseUrl = builder.Configuration["Backend:BaseUrl"]
+    ?? throw new InvalidOperationException("Missing Backend:BaseUrl configuration.");
+builder.Services.AddScoped(_ => new HttpClient
 {
-    BaseAddress = new Uri("https://localhost:7095/")
+    BaseAddress = new Uri(backendBaseUrl),
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);

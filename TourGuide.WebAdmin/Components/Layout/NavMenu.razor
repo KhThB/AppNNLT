@@ -1,4 +1,10 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
+@using System.Net.Http.Headers
+@using Blazored.LocalStorage
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+<div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">TourGuide Admin</a>
     </div>
@@ -6,23 +12,82 @@
 
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler')?.click()">
     <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard
-            </NavLink>
-        </div>
+        @if (_hasToken)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/dashboard" Match="NavLinkMatch.All">
+                    <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard thống kê
+                </NavLink>
+            </div>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="poi-approval">
-                <span class="bi bi-check-circle-fill" aria-hidden="true"></span> Duyệt Quán Mới
-            </NavLink>
-        </div>
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="poi-management">
-                <span class="bi bi-qr-code-scan" aria-hidden="true"></span> Danh Sách & Mã QR
-            </NavLink>
-        </div>
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/poi-approval">
+                    <span class="bi bi-check-circle-fill" aria-hidden="true"></span> Duyệt POI
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/poi-management">
+                    <span class="bi bi-qr-code-scan" aria-hidden="true"></span> Quản lý POI tổng
+                </NavLink>
+            </div>
+
+            <div class="nav-item px-3">
+                <button type="button" class="nav-link nav-button" @onclick="LogoutAsync">
+                    <span class="bi bi-box-arrow-right" aria-hidden="true"></span> Đăng xuất
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin/login">
+                    <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Admin Login
+                </NavLink>
+            </div>
+        }
     </nav>
 </div>
+
+@code {
+    private bool _hasToken;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        var role = await LocalStorage.GetItemAsync<string>("userRole");
+        _hasToken = !string.IsNullOrWhiteSpace(token) &&
+                    string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
+        StateHasChanged();
+    }
+
+    private async Task LogoutAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (!string.IsNullOrWhiteSpace(token))
+        {
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            try
+            {
+                await Http.PostAsync("api/auth/logout", null);
+            }
+            catch
+            {
+            }
+        }
+
+        await LocalStorage.RemoveItemAsync("authToken");
+        await LocalStorage.RemoveItemAsync("userId");
+        await LocalStorage.RemoveItemAsync("userRole");
+        await LocalStorage.RemoveItemAsync("userName");
+        _hasToken = false;
+        Navigation.NavigateTo("/admin/login", true);
+    }
+}

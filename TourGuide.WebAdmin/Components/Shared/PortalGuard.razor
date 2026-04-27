@@ -1,0 +1,90 @@
+@using System.Net.Http.Headers
+@using Blazored.LocalStorage
+@using TourGuide.WebAdmin.Models
+@inject HttpClient Http
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+@if (!_isReady)
+{
+    <div class="d-flex justify-center my-12">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    </div>
+}
+else if (_isAuthorized)
+{
+    @ChildContent
+}
+
+@code {
+    [Parameter, EditorRequired] public string RequiredRole { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string RedirectTo { get; set; } = string.Empty;
+    [Parameter] public EventCallback<SessionUser> OnAuthorized { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private bool _isReady;
+    private bool _isAuthorized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Navigation.NavigateTo(RedirectTo, true);
+            return;
+        }
+
+        try
+        {
+            if (Http.DefaultRequestHeaders.Authorization?.Parameter != token)
+            {
+                Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            }
+        }
+        catch { }
+
+        try
+        {
+            var me = await Http.GetFromJsonAsync<SessionUser>("api/auth/me");
+            if (me == null || !string.Equals(me.Role, RequiredRole, StringComparison.OrdinalIgnoreCase))
+            {
+                await LocalStorage.RemoveItemAsync("authToken");
+                await LocalStorage.RemoveItemAsync("userId");
+                await LocalStorage.RemoveItemAsync("userRole");
+                Navigation.NavigateTo(RedirectTo, true);
+                return;
+            }
+
+            await LocalStorage.SetItemAsync("userId", me.Id);
+            await LocalStorage.SetItemAsync("userRole", me.Role);
+            await LocalStorage.SetItemAsync("userName", me.FullName);
+            _isAuthorized = true;
+            _isReady = true;
+            StateHasChanged();
+
+            if (OnAuthorized.HasDelegate)
+            {
+                try
+                {
+                    await OnAuthorized.InvokeAsync(me);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Authorized page load failed: {ex}");
+                }
+            }
+        }
+        catch
+        {
+            await LocalStorage.RemoveItemAsync("authToken");
+            await LocalStorage.RemoveItemAsync("userId");
+            await LocalStorage.RemoveItemAsync("userRole");
+            Navigation.NavigateTo(RedirectTo, true);
+        }
+    }
+}

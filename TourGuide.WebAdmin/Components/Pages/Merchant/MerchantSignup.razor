@@ -1,0 +1,58 @@
+@page "/merchant/signup"
+@layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
+@rendermode InteractiveServer
+@using Blazored.LocalStorage
+@using TourGuide.WebAdmin.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="my-8">
+    <MudPaper Elevation="3" Class="pa-8 glass-panel" Style="border-radius: 16px;">
+        <MudText Typo="Typo.h4" Class="gradient-text" Align="Align.Center">Tạo tài khoản merchant</MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-6">Tài khoản này có thể quản lý nhiều POI trong cùng hệ thống.</MudText>
+        <MudTextField @bind-Value="_fullName" Label="Họ tên" Variant="Variant.Outlined" Class="mb-4" />
+        <MudTextField @bind-Value="_phone" Label="Số điện thoại" Variant="Variant.Outlined" Class="mb-4" />
+        <MudTextField @bind-Value="_email" Label="Email" Variant="Variant.Outlined" Class="mb-4" />
+        <MudTextField @bind-Value="_password" Label="Mật khẩu" Variant="Variant.Outlined" InputType="InputType.Password" Class="mb-6" />
+        <MudButton FullWidth="true" Variant="Variant.Filled" Color="Color.Primary" OnClick="RegisterAsync">Tạo tài khoản</MudButton>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _fullName = string.Empty;
+    private string _phone = string.Empty;
+    private string _email = string.Empty;
+    private string _password = string.Empty;
+
+    private async Task RegisterAsync()
+    {
+        var response = await Http.PostAsJsonAsync("api/auth/merchant/register", new
+        {
+            FullName = _fullName,
+            Phone = _phone,
+            Email = _email,
+            Password = _password,
+        });
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Không thể tạo tài khoản merchant.", Severity.Error);
+            return;
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+        if (result == null)
+        {
+            Snackbar.Add("Đọc phản hồi tạo tài khoản thất bại.", Severity.Error);
+            return;
+        }
+
+        await LocalStorage.SetItemAsync("authToken", result.Token);
+        await LocalStorage.SetItemAsync("userId", result.User.Id);
+        await LocalStorage.SetItemAsync("userRole", result.User.Role);
+        await LocalStorage.SetItemAsync("userName", result.User.FullName);
+        Navigation.NavigateTo("/merchant/register", true);
+    }
+}

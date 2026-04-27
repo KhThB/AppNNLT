@@ -1,86 +1,70 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Driver;
+using TourGuide.API.Contracts;
+using TourGuide.API.Services.Abstractions;
 using TourGuide.Domain.Models;
 
-namespace TourGuide.API.Controllers
+namespace TourGuide.API.Controllers;
+
+[ApiController]
+[Route("api")]
+public sealed class AnalyticsController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class AnalyticsController : ControllerBase
+    private readonly IAnalyticsService _analyticsService;
+
+    public AnalyticsController(IAnalyticsService analyticsService)
     {
-        private readonly IMongoCollection<POI> _poiCollection;
-        private readonly IMongoCollection<NarrationLog> _narrationLogCollection;
-
-        public AnalyticsController(IMongoDatabase database)
-        {
-            _poiCollection = database.GetCollection<POI>("POIs");
-            _narrationLogCollection = database.GetCollection<NarrationLog>("NarrationLogs");
-        }
-
-        [HttpGet("dashboard-stats")]
-        public async Task<IActionResult> GetDashboardStats()
-        {
-            // Lấy toàn bộ quán ăn đã duyệt
-            var approvedPOIs = await _poiCollection.Find(p => p.Status == "Approved").ToListAsync();
-
-            // Tính toán tổng số lượng
-            var totalRevenue = approvedPOIs.Sum(p => p.Revenue);
-            var totalQRScans = approvedPOIs.Sum(p => p.QRScanCount);
-            var totalTTSPlays = approvedPOIs.Sum(p => p.TTSPlayCount);
-
-            // Tính DwellTime trung bình từ NarrationLog
-            var logs = await _narrationLogCollection.Find(_ => true).ToListAsync();
-            string avgDwellTimeStr = "0s";
-            if (logs.Any())
-            {
-                var avgSeconds = logs.Average(x => x.DwellTime);
-                var ts = TimeSpan.FromSeconds(avgSeconds);
-                avgDwellTimeStr = $"{(int)ts.TotalMinutes}m {ts.Seconds}s";
-            }
-
-            var stats = new
-            {
-                TotalRevenue = totalRevenue,
-                TotalQRScans = totalQRScans,
-                TotalTTSPlays = totalTTSPlays,
-                AverageDwellTime = avgDwellTimeStr,
-
-                ChartLabels = new string[] { "T2", "T3", "T4", "T5", "T6", "T7", "CN" },
-                ChartData = new double[] { 10, 15, 20, 10, 25, 30, totalQRScans > 0 ? totalQRScans : 50 }
-            };
-            
-            return Ok(stats);
-        }
-
-        [HttpPost("narration-log")]
-        public async Task<IActionResult> LogNarration([FromBody] NarrationLogRequest request)
-        {
-            if (string.IsNullOrEmpty(request.PoiId) || string.IsNullOrEmpty(request.UserId))
-                return BadRequest("Thiếu PoiId hoặc UserId");
-
-            var log = new NarrationLog
-            {
-                PoiId = request.PoiId,
-                UserId = request.UserId,
-                OwnerId = request.OwnerId,
-                DwellTime = request.DwellTime,
-                StartedAt = request.StartedAt,
-                EndedAt = request.EndedAt,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            await _narrationLogCollection.InsertOneAsync(log);
-            return Ok(new { message = "Ghi nhận DwellTime thành công." });
-        }
+        _analyticsService = analyticsService;
     }
 
-    public class NarrationLogRequest
+    [HttpPost("qr/scan")]
+    public async Task<ActionResult<QrScanResponse>> RecordQrScan([FromBody] QrScanRequest request, CancellationToken cancellationToken)
     {
-        public string PoiId { get; set; } = "";
-        public string UserId { get; set; } = "";
-        public string? OwnerId { get; set; }
-        public int DwellTime { get; set; }
-        public DateTime StartedAt { get; set; }
-        public DateTime EndedAt { get; set; }
+        return Ok(await _analyticsService.RecordQrScanAsync(request, cancellationToken));
+    }
+
+    [HttpPost("narration/play")]
+    public async Task<ActionResult<NarrationPlayResponse>> StartNarration([FromBody] NarrationPlayRequest request, CancellationToken cancellationToken)
+    {
+        return Ok(await _analyticsService.StartNarrationAsync(request, cancellationToken));
+    }
+
+    [HttpPost("narration/finish")]
+    public async Task<IActionResult> FinishNarration([FromBody] NarrationFinishRequest request, CancellationToken cancellationToken)
+    {
+        await _analyticsService.FinishNarrationAsync(request, cancellationToken);
+        return NoContent();
+    }
+
+    [Authorize(Roles = KnownRoles.Admin)]
+    [HttpGet("analytics/admin/overview")]
+    public async Task<ActionResult<AdminOverviewResponse>> AdminOverview(CancellationToken cancellationToken)
+    {
+        return Ok(await _analyticsService.GetAdminOverviewAsync(cancellationToken));
+    }
+
+    [Authorize(Roles = KnownRoles.Admin)]
+    [HttpGet("analytics/admin/heatmap")]
+    public async Task<ActionResult<IReadOnlyList<HeatmapPoint>>> Heatmap([FromQuery] int hours = 4, CancellationToken cancellationToken = default)
+    {
+        return Ok(await _analyticsService.GetHeatmapAsync(hours, cancellationToken));
+    }
+
+    [Authorize(Roles = $"{KnownRoles.Admin},{KnownRoles.Merchant}")]
+    [HttpGet("analytics/owner/overview")]
+    public async Task<ActionResult<OwnerOverviewResponse>> OwnerOverview([FromQuery] string? ownerId, CancellationToken cancellationToken)
+    {
+        var resolvedOwnerId = ownerId;
+        if (User.IsInRole(KnownRoles.Merchant))
+        {
+            resolvedOwnerId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        }
+
+        if (string.IsNullOrWhiteSpace(resolvedOwnerId))
+        {
+            return BadRequest("Thiếu ownerId.");
+        }
+
+        return Ok(await _analyticsService.GetOwnerOverviewAsync(resolvedOwnerId, cancellationToken));
     }
 }
