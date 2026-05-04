@@ -19,6 +19,7 @@ public class TranslationCache
     public string TranslatedText { get; set; } = string.Empty;
     public string Status { get; set; } = TranslationStatuses.PendingManual;
     public string Provider { get; set; } = "ManualFallback";
+    public string ErrorMessage { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

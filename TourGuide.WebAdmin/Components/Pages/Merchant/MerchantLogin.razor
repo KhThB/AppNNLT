@@ -26,6 +26,39 @@
     private string _phone = string.Empty;
     private string _password = string.Empty;
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return;
+        }
+
+        try
+        {
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+            var me = await Http.GetFromJsonAsync<SessionUser>("api/auth/me");
+            if (string.Equals(me?.Role, "Merchant", StringComparison.OrdinalIgnoreCase))
+            {
+                Navigation.NavigateTo("/merchant/dashboard", true);
+                return;
+            }
+        }
+        catch
+        {
+        }
+
+        await LocalStorage.RemoveItemAsync("authToken");
+        await LocalStorage.RemoveItemAsync("userId");
+        await LocalStorage.RemoveItemAsync("userRole");
+        await LocalStorage.RemoveItemAsync("userName");
+    }
+
     private async Task LoginAsync()
     {
         try

@@ -6,10 +6,12 @@ public interface IAnalyticsService
 {
     Task RecordPingAsync(PingRequest request, CancellationToken cancellationToken = default);
     int GetActiveUserCount();
+    IReadOnlyList<OnlineDeviceResponse> GetOnlineDevices();
     Task<QrScanResponse> RecordQrScanAsync(QrScanRequest request, CancellationToken cancellationToken = default);
     Task<NarrationPlayResponse> StartNarrationAsync(NarrationPlayRequest request, CancellationToken cancellationToken = default);
     Task FinishNarrationAsync(NarrationFinishRequest request, CancellationToken cancellationToken = default);
     Task<AdminOverviewResponse> GetAdminOverviewAsync(CancellationToken cancellationToken = default);
     Task<OwnerOverviewResponse> GetOwnerOverviewAsync(string ownerId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<HeatmapPoint>> GetHeatmapAsync(int hours, CancellationToken cancellationToken = default);
+    Task<RepairResponse> RepairAnalyticsCountersAsync(CancellationToken cancellationToken = default);
 }

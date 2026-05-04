@@ -4,6 +4,7 @@
 @rendermode InteractiveServer
 @using TourGuide.WebAdmin.Components.Shared
 @using TourGuide.WebAdmin.Models
+@implements IAsyncDisposable
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
@@ -17,7 +18,8 @@
     }
     else if (_overview != null)
     {
-        <MudText Typo="Typo.h4" GutterBottom="true">Dashboard quan tri</MudText>
+        <MudText Typo="Typo.h4" GutterBottom="true">Dashboard quản trị</MudText>
+
         <MudGrid Class="mb-6">
             @foreach (var metric in _overview.Metrics)
             {
@@ -30,14 +32,8 @@
             }
             <MudItem xs="12" sm="6" md="3">
                 <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
-                    <MudText Typo="Typo.caption">MRR</MudText>
-                    <MudText Typo="Typo.h4">@_overview.MonthlyRecurringRevenue.ToString("N0") VND</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
-                    <MudText Typo="Typo.caption">Total Revenue</MudText>
-                    <MudText Typo="Typo.h4">@_overview.TotalRevenue.ToString("N0") VND</MudText>
+                    <MudText Typo="Typo.caption">Thiết bị online</MudText>
+                    <MudText Typo="Typo.h4">@_onlineDevices.Count</MudText>
                 </MudPaper>
             </MudItem>
         </MudGrid>
@@ -45,65 +41,101 @@
         <MudGrid Class="mb-6">
             <MudItem xs="12" lg="7">
                 <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
-                    <MudText Typo="Typo.h6" Class="mb-3">QR trend 7 ngay</MudText>
-                    @RenderBars(_overview.QrTrend, "#1d4ed8")
+                    <MudText Typo="Typo.h6" Class="mb-3">QR trend 7 ngày</MudText>
+                    @RenderBars(_overview.QrTrend, "#ea580c")
                     <MudDivider Class="my-4" />
-                    <MudText Typo="Typo.h6" Class="mb-3">TTS trend 7 ngay</MudText>
-                    @RenderBars(_overview.TtsTrend, "#d97706")
+                    <MudText Typo="Typo.h6" Class="mb-3">TTS trend 7 ngày</MudText>
+                    @RenderBars(_overview.TtsTrend, "#f59e0b")
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" lg="5">
                 <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
-                    <MudText Typo="Typo.h6" Class="mb-3">Heatmap nguoi dung</MudText>
+                    <MudText Typo="Typo.h6" Class="mb-3">Bản đồ người dùng và POI</MudText>
                     <div id="admin-heatmap" style="height: 360px; min-height: 360px; border-radius: 12px;"></div>
                 </MudPaper>
             </MudItem>
         </MudGrid>
 
-        <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
-            <MudText Typo="Typo.h6" Class="mb-3">Recent audit</MudText>
-            <MudTable Items="_overview.RecentAuditLogs" Dense="true" Hover="true">
-                <HeaderContent>
-                    <MudTh>Action</MudTh>
-                    <MudTh>Role</MudTh>
-                    <MudTh>Target</MudTh>
-                    <MudTh>Description</MudTh>
-                    <MudTh>Time</MudTh>
-                </HeaderContent>
-                <RowTemplate>
-                    <MudTd>@context.ActionType</MudTd>
-                    <MudTd>@context.ActorRole</MudTd>
-                    <MudTd>@context.TargetType / @context.TargetId</MudTd>
-                    <MudTd>@context.Description</MudTd>
-                    <MudTd>@context.Timestamp.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
-                </RowTemplate>
-            </MudTable>
-        </MudPaper>
+        <MudGrid>
+            <MudItem xs="12" lg="7">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Thiết bị đang sử dụng</MudText>
+                    <MudTable Items="_onlineDevices" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Thiết bị</MudTh>
+                            <MudTh>Nền tảng</MudTh>
+                            <MudTh>Phiên</MudTh>
+                            <MudTh>Vị trí</MudTh>
+                            <MudTh>Online lúc</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@DisplayDeviceName(context)</MudTd>
+                            <MudTd>@context.Platform @context.AppVersion</MudTd>
+                            <MudTd>@ShortId(context.SessionId)</MudTd>
+                            <MudTd>@DisplayLocation(context)</MudTd>
+                            <MudTd>@context.LastSeenAt.ToLocalTime().ToString("HH:mm:ss")</MudTd>
+                        </RowTemplate>
+                        <NoRecordsContent>
+                            <MudText Class="pa-4">Chưa có thiết bị online trong 30 giây gần nhất.</MudText>
+                        </NoRecordsContent>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" lg="5">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Audit gần đây</MudText>
+                    <MudTable Items="_overview.RecentAuditLogs" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Action</MudTh>
+                            <MudTh>Role</MudTh>
+                            <MudTh>Mô tả</MudTh>
+                            <MudTh>Thời gian</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.ActionType</MudTd>
+                            <MudTd>@context.ActorRole</MudTd>
+                            <MudTd>@context.Description</MudTd>
+                            <MudTd>@context.Timestamp.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
     }
 </PortalGuard>
 
 @code {
     private AdminOverview? _overview;
     private List<HeatmapPoint> _heatmap = new();
+    private List<PoiMapPoint> _poiPoints = new();
+    private List<OnlineDevice> _onlineDevices = new();
+    private CancellationTokenSource? _onlinePollingCts;
     private bool _loading = true;
     private bool _mapRendered;
 
     private async Task LoadAfterAuthAsync(SessionUser user)
     {
+        _onlinePollingCts?.Cancel();
+
         try
         {
             _overview = await Http.GetFromJsonAsync<AdminOverview>("api/analytics/admin/overview");
             _heatmap = await Http.GetFromJsonAsync<List<HeatmapPoint>>("api/analytics/admin/heatmap?hours=4") ?? new();
+            _poiPoints = await Http.GetFromJsonAsync<List<PoiMapPoint>>("api/poi/map-summary") ?? new();
+            await LoadOnlineDevicesAsync(updateMap: false);
         }
         catch (HttpRequestException)
         {
-            Snackbar.Add("Khong tai duoc dashboard quan tri. Vui long dang nhap lai bang tai khoan admin.", Severity.Error);
+            Snackbar.Add("Không tải được dashboard quản trị. Vui lòng đăng nhập lại bằng tài khoản admin.", Severity.Error);
             _overview = new AdminOverview();
             _heatmap = new();
+            _poiPoints = new();
+            _onlineDevices = new();
         }
 
         _loading = false;
         _mapRendered = false;
+        StartOnlinePolling();
         StateHasChanged();
     }
 
@@ -111,9 +143,91 @@
     {
         if (!_loading && !_mapRendered)
         {
-            _mapRendered = true;
-            await JS.InvokeVoidAsync("renderHeatmapMap", "admin-heatmap", _heatmap);
+            await RenderMapAsync();
         }
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _onlinePollingCts?.Cancel();
+        _onlinePollingCts?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private void StartOnlinePolling()
+    {
+        _onlinePollingCts?.Cancel();
+        _onlinePollingCts?.Dispose();
+        _onlinePollingCts = new CancellationTokenSource();
+        _ = PollOnlineDevicesAsync(_onlinePollingCts.Token);
+    }
+
+    private async Task PollOnlineDevicesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                await InvokeAsync(async () =>
+                {
+                    await LoadOnlineDevicesAsync(updateMap: true);
+                    StateHasChanged();
+                });
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task LoadOnlineDevicesAsync(bool updateMap)
+    {
+        try
+        {
+            _onlineDevices = await Http.GetFromJsonAsync<List<OnlineDevice>>("api/tracking/online-devices") ?? new();
+            if (updateMap && _mapRendered)
+            {
+                await JS.InvokeVoidAsync("updateOnlineDevicesOnMap", "admin-heatmap", _onlineDevices);
+            }
+        }
+        catch (HttpRequestException)
+        {
+            _onlineDevices = new();
+        }
+        catch (JSException)
+        {
+        }
+    }
+
+    private async Task RenderMapAsync()
+    {
+        _mapRendered = true;
+        await JS.InvokeVoidAsync("renderHeatmapMap", "admin-heatmap", _heatmap, _poiPoints, _onlineDevices);
+    }
+
+    private static string DisplayDeviceName(OnlineDevice device)
+    {
+        return string.IsNullOrWhiteSpace(device.DeviceName)
+            ? ShortId(device.DeviceId)
+            : device.DeviceName;
+    }
+
+    private static string DisplayLocation(OnlineDevice device)
+    {
+        return device.Latitude == 0 && device.Longitude == 0
+            ? "Chưa có GPS"
+            : $"{device.Latitude:N5}, {device.Longitude:N5}";
+    }
+
+    private static string ShortId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        return value.Length <= 10 ? value : value[..10];
     }
 
     private RenderFragment RenderBars(IReadOnlyList<TrendPoint> points, string color) => builder =>
@@ -128,7 +242,7 @@
             builder.AddAttribute(seq++, "style", "display:grid; grid-template-columns:70px 1fr 60px; gap:12px; align-items:center;");
             builder.AddContent(seq++, point.Label);
             builder.OpenElement(seq++, "div");
-            builder.AddAttribute(seq++, "style", "background:#e2e8f0; height:12px; border-radius:999px; overflow:hidden;");
+            builder.AddAttribute(seq++, "style", "background:#fed7aa; height:12px; border-radius:999px; overflow:hidden;");
             builder.OpenElement(seq++, "div");
             builder.AddAttribute(seq++, "style", $"background:{color}; width:{Math.Round(point.Value / max * 100, 2)}%; height:12px;");
             builder.CloseElement();
@@ -142,8 +256,6 @@
     private sealed class AdminOverview
     {
         public List<Metric> Metrics { get; set; } = new();
-        public decimal MonthlyRecurringRevenue { get; set; }
-        public decimal TotalRevenue { get; set; }
         public List<TrendPoint> QrTrend { get; set; } = new();
         public List<TrendPoint> TtsTrend { get; set; } = new();
         public List<AuditLogItem> RecentAuditLogs { get; set; } = new();
@@ -165,8 +277,6 @@
     {
         public string ActionType { get; set; } = string.Empty;
         public string ActorRole { get; set; } = string.Empty;
-        public string TargetType { get; set; } = string.Empty;
-        public string TargetId { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public DateTime Timestamp { get; set; }
     }
@@ -176,5 +286,29 @@
         public double Latitude { get; set; }
         public double Longitude { get; set; }
         public int Intensity { get; set; }
+    }
+
+    private sealed class PoiMapPoint
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string SubscriptionPackage { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+    }
+
+    private sealed class OnlineDevice
+    {
+        public string DeviceId { get; set; } = string.Empty;
+        public string UserId { get; set; } = string.Empty;
+        public string SessionId { get; set; } = string.Empty;
+        public string Platform { get; set; } = string.Empty;
+        public string AppVersion { get; set; } = string.Empty;
+        public string DeviceName { get; set; } = string.Empty;
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public double Speed { get; set; }
+        public DateTime LastSeenAt { get; set; }
     }
 }

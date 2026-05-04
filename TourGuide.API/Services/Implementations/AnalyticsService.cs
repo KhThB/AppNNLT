@@ -1,4 +1,5 @@
 using MongoDB.Driver;
+using Microsoft.AspNetCore.Http;
 using TourGuide.API.Contracts;
 using TourGuide.API.Infrastructure.Mongo;
 using TourGuide.API.Services.Abstractions;
@@ -11,18 +12,24 @@ public sealed class AnalyticsService : IAnalyticsService
     private readonly MongoCollections _collections;
     private readonly PresenceTracker _presenceTracker;
     private readonly IAuditService _auditService;
+    private readonly IHttpContextAccessor _httpContextAccessor;
 
-    public AnalyticsService(MongoCollections collections, PresenceTracker presenceTracker, IAuditService auditService)
+    public AnalyticsService(
+        MongoCollections collections,
+        PresenceTracker presenceTracker,
+        IAuditService auditService,
+        IHttpContextAccessor httpContextAccessor)
     {
         _collections = collections;
         _presenceTracker = presenceTracker;
         _auditService = auditService;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task RecordPingAsync(PingRequest request, CancellationToken cancellationToken = default)
     {
-        var presenceKey = string.IsNullOrWhiteSpace(request.UserId) ? request.DeviceId : request.UserId;
-        _presenceTracker.MarkSeen(presenceKey, DateTime.UtcNow);
+        var now = DateTime.UtcNow;
+        _presenceTracker.MarkSeen(request, now);
 
         if (request.Latitude == 0 && request.Longitude == 0)
         {
@@ -35,7 +42,7 @@ public sealed class AnalyticsService : IAnalyticsService
             DeviceId = request.DeviceId,
             SessionId = request.SessionId,
             Speed = request.Speed,
-            Timestamp = DateTime.UtcNow,
+            Timestamp = now,
             Location = new GeoLocation
             {
                 Type = "Point",
@@ -48,7 +55,12 @@ public sealed class AnalyticsService : IAnalyticsService
 
     public int GetActiveUserCount()
     {
-        return _presenceTracker.CountActive(TimeSpan.FromSeconds(15));
+        return _presenceTracker.CountActive(TimeSpan.FromSeconds(30));
+    }
+
+    public IReadOnlyList<OnlineDeviceResponse> GetOnlineDevices()
+    {
+        return _presenceTracker.GetActive(TimeSpan.FromSeconds(30));
     }
 
     public async Task<QrScanResponse> RecordQrScanAsync(QrScanRequest request, CancellationToken cancellationToken = default)
@@ -73,12 +85,16 @@ public sealed class AnalyticsService : IAnalyticsService
             WindowKey = BusinessRules.BuildQrWindowKey(now),
             Counted = counted,
             TriggerSource = request.TriggerSource,
+            IPAddress = _httpContextAccessor.HttpContext?.Connection.RemoteIpAddress?.ToString() ?? string.Empty,
+            UserAgent = _httpContextAccessor.HttpContext?.Request.Headers.UserAgent.ToString() ?? string.Empty,
             CooldownEndsAt = cooldownEndsAt,
             OccurredAt = now,
             CreatedAt = now,
         };
 
-        await _collections.QrScanLogs.InsertOneAsync(log, cancellationToken: cancellationToken);
+        await InsertQrScanLogAsync(log, cancellationToken);
+        counted = log.Counted;
+        cooldownEndsAt = log.CooldownEndsAt;
 
         var update = counted
             ? Builders<POI>.Update.Inc(x => x.CountedQrScanCount, 1)
@@ -125,6 +141,7 @@ public sealed class AnalyticsService : IAnalyticsService
             OwnerId = poi.OwnerId,
             VisitorId = request.VisitorId,
             SessionId = request.SessionId,
+            Language = NormalizeLanguage(request.Language),
             TriggerSource = request.TriggerSource,
             WindowKey = BusinessRules.BuildMinuteWindowKey(DateTime.UtcNow),
             Counted = counted,
@@ -168,13 +185,16 @@ public sealed class AnalyticsService : IAnalyticsService
 
         var pois = await _collections.Pois.Find(FilterDefinition<POI>.Empty).ToListAsync(cancellationToken);
         var billing = await _collections.BillingRecords.Find(FilterDefinition<BillingRecord>.Empty).ToListAsync(cancellationToken);
+        var countedQrScans = (int)await _collections.QrScanLogs.CountDocumentsAsync(x => x.Counted, cancellationToken: cancellationToken);
+        var countedTtsPlays = (int)await _collections.NarrationLogs.CountDocumentsAsync(x => x.Counted, cancellationToken: cancellationToken);
 
         var metrics = new List<OverviewMetric>
         {
-            new() { Label = "Owners", Value = owners.ToString(), Tone = "primary" },
+            new() { Label = "Tài khoản chủ quán", Value = owners.ToString(), Tone = "primary" },
+            new() { Label = "Tổng POI", Value = totalPois.ToString(), Tone = "primary" },
             new() { Label = "POI chờ duyệt", Value = pendingPois.ToString(), Tone = "warning" },
-            new() { Label = "QR counted", Value = pois.Sum(x => x.CountedQrScanCount).ToString(), Tone = "success" },
-            new() { Label = "TTS counted", Value = pois.Sum(x => x.CountedTtsPlayCount).ToString(), Tone = "info" },
+            new() { Label = "QR counted", Value = countedQrScans.ToString(), Tone = "success" },
+            new() { Label = "TTS counted", Value = countedTtsPlays.ToString(), Tone = "info" },
         };
 
         return new AdminOverviewResponse
@@ -184,10 +204,10 @@ public sealed class AnalyticsService : IAnalyticsService
             TotalPois = (int)totalPois,
             PendingPois = (int)pendingPois,
             ApprovedPois = (int)approvedPois,
-            CountedQrScans = pois.Sum(x => x.CountedQrScanCount),
-            CountedTtsPlays = pois.Sum(x => x.CountedTtsPlayCount),
-            TotalRevenue = billing.Sum(x => x.Amount),
-            MonthlyRecurringRevenue = billing.Where(x => x.Status == "Active").Sum(x => x.Amount),
+            CountedQrScans = countedQrScans,
+            CountedTtsPlays = countedTtsPlays,
+            TotalRevenue = billing.Where(x => x.Status == BillingStatuses.Active).Sum(x => x.Amount),
+            MonthlyRecurringRevenue = billing.Where(x => x.Status == BillingStatuses.Active).Sum(x => x.Amount),
             Metrics = metrics,
             QrTrend = await BuildQrTrendAsync(null, cancellationToken),
             TtsTrend = await BuildTtsTrendAsync(null, cancellationToken),
@@ -199,6 +219,9 @@ public sealed class AnalyticsService : IAnalyticsService
     {
         var pois = await _collections.Pois.Find(x => x.OwnerId == ownerId).ToListAsync(cancellationToken);
         var billing = await _collections.BillingRecords.Find(x => x.OwnerId == ownerId).ToListAsync(cancellationToken);
+        var countedQrScans = (int)await _collections.QrScanLogs.CountDocumentsAsync(x => x.OwnerId == ownerId && x.Counted, cancellationToken: cancellationToken);
+        var countedTtsPlays = (int)await _collections.NarrationLogs.CountDocumentsAsync(x => x.OwnerId == ownerId && x.Counted, cancellationToken: cancellationToken);
+        var replayTtsPlays = (int)await _collections.NarrationLogs.CountDocumentsAsync(x => x.OwnerId == ownerId && !x.Counted, cancellationToken: cancellationToken);
         var alerts = await _collections.OwnerAlerts.Find(x => x.OwnerId == ownerId)
             .SortByDescending(x => x.CreatedAt)
             .Limit(8)
@@ -217,11 +240,11 @@ public sealed class AnalyticsService : IAnalyticsService
             OwnerId = ownerId,
             TotalPois = pois.Count,
             ApprovedPois = pois.Count(x => x.Status == PoiWorkflowStatuses.Approved),
-            CountedQrScans = pois.Sum(x => x.CountedQrScanCount),
-            CountedTtsPlays = pois.Sum(x => x.CountedTtsPlayCount),
-            ReplayTtsPlays = pois.Sum(x => x.ReplayTtsPlayCount),
-            Revenue = billing.Sum(x => x.Amount),
-            MonthlyRecurringRevenue = billing.Where(x => x.Status == "Active").Sum(x => x.Amount),
+            CountedQrScans = countedQrScans,
+            CountedTtsPlays = countedTtsPlays,
+            ReplayTtsPlays = replayTtsPlays,
+            Revenue = billing.Where(x => x.Status == BillingStatuses.Active).Sum(x => x.Amount),
+            MonthlyRecurringRevenue = billing.Where(x => x.Status == BillingStatuses.Active).Sum(x => x.Amount),
             ContentCompletenessScore = Math.Round(contentCompleteness, 2),
             RegionalAverageQrScans = allApprovedPois.Count == 0 ? 0 : allApprovedPois.Average(x => x.CountedQrScanCount),
             RegionalAverageTtsPlays = allApprovedPois.Count == 0 ? 0 : allApprovedPois.Average(x => x.CountedTtsPlayCount),
@@ -271,6 +294,80 @@ public sealed class AnalyticsService : IAnalyticsService
             .OrderByDescending(x => x.Intensity)
             .Take(300)
             .ToList();
+    }
+
+    public async Task<RepairResponse> RepairAnalyticsCountersAsync(CancellationToken cancellationToken = default)
+    {
+        var pois = await _collections.Pois.Find(FilterDefinition<POI>.Empty).ToListAsync(cancellationToken);
+        var qrLogs = await _collections.QrScanLogs.Find(FilterDefinition<QrScanLog>.Empty).ToListAsync(cancellationToken);
+        var narrationLogs = await _collections.NarrationLogs.Find(FilterDefinition<NarrationLog>.Empty).ToListAsync(cancellationToken);
+        var updated = 0;
+
+        foreach (var poi in pois)
+        {
+            var countedQr = qrLogs.Count(x => x.PoiId == poi.Id && x.Counted);
+            var replayQr = qrLogs.Count(x => x.PoiId == poi.Id && !x.Counted);
+            var countedTts = narrationLogs.Count(x => x.PoiId == poi.Id && x.Counted);
+            var replayTts = narrationLogs.Count(x => x.PoiId == poi.Id && !x.Counted);
+
+            if (poi.CountedQrScanCount == countedQr &&
+                poi.ReplayQrScanCount == replayQr &&
+                poi.CountedTtsPlayCount == countedTts &&
+                poi.ReplayTtsPlayCount == replayTts)
+            {
+                continue;
+            }
+
+            await _collections.Pois.UpdateOneAsync(
+                x => x.Id == poi.Id,
+                Builders<POI>.Update
+                    .Set(x => x.CountedQrScanCount, countedQr)
+                    .Set(x => x.ReplayQrScanCount, replayQr)
+                    .Set(x => x.CountedTtsPlayCount, countedTts)
+                    .Set(x => x.ReplayTtsPlayCount, replayTts)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow),
+                cancellationToken: cancellationToken);
+            updated++;
+        }
+
+        return new RepairResponse
+        {
+            Matched = pois.Count,
+            Updated = updated,
+            Message = "Analytics counters repaired from event logs.",
+        };
+    }
+
+    private async Task InsertQrScanLogAsync(QrScanLog log, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await _collections.QrScanLogs.InsertOneAsync(log, cancellationToken: cancellationToken);
+        }
+        catch (MongoWriteException ex) when (log.Counted && ex.WriteError?.Category == ServerErrorCategory.DuplicateKey)
+        {
+            var lastCounted = await _collections.QrScanLogs
+                .Find(x => x.PoiId == log.PoiId && x.VisitorId == log.VisitorId && x.WindowKey == log.WindowKey && x.Counted)
+                .SortByDescending(x => x.OccurredAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            log.Id = string.Empty;
+            log.Counted = false;
+            log.CooldownEndsAt = lastCounted?.CooldownEndsAt ?? BusinessRules.GetQrCooldownEnd(DateTime.UtcNow);
+            await _collections.QrScanLogs.InsertOneAsync(log, cancellationToken: cancellationToken);
+        }
+    }
+
+    private static string NormalizeLanguage(string language)
+    {
+        return (language ?? string.Empty).Trim().ToUpperInvariant() switch
+        {
+            "EN" => "EN",
+            "KO" or "KR" => "KO",
+            "JA" or "JP" => "JA",
+            "ZH" or "CN" => "ZH",
+            _ => "VI",
+        };
     }
 
     private async Task<IReadOnlyList<TrendPoint>> BuildQrTrendAsync(string? ownerId, CancellationToken cancellationToken)

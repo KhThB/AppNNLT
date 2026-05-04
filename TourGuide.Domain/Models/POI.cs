@@ -15,6 +15,7 @@ public class POI
 
     public string Name { get; set; } = string.Empty;
     public string Address { get; set; } = string.Empty;
+    public List<string> Tags { get; set; } = new();
     public string SourceLanguage { get; set; } = "vi";
     public string SourceDescription { get; set; } = string.Empty;
     public string Description_VI { get; set; } = string.Empty;

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="Mobile.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:views="clr-namespace:Mobile.Views"
+    Shell.FlyoutBehavior="Disabled"
+    Shell.BackgroundColor="{AppThemeBinding Light={StaticResource TabBarBackgroundColorLight}, Dark={StaticResource TabBarBackgroundColorDark}}"
+    Shell.TabBarBackgroundColor="{AppThemeBinding Light={StaticResource TabBarBackgroundColorLight}, Dark={StaticResource TabBarBackgroundColorDark}}"
+    Title="Vinh Khanh Food Tour">
+
+    <TabBar>
+        <Tab Route="HomePageTab" Title="" Icon="{AppThemeBinding Light=ic_home.png, Dark=ic_home_dark.png}">
+            <ShellContent Route="HomePage" ContentTemplate="{DataTemplate views:HomePage}" />
+        </Tab>
+        <Tab Route="MapPageTab" Title="" Icon="{AppThemeBinding Light=ic_explore.png, Dark=ic_explore_dark.png}">
+            <ShellContent Route="MapPage" ContentTemplate="{DataTemplate views:MapPage}" />
+        </Tab>
+        <Tab Route="QrScannerPageTab" Title="" Icon="ic_scan.png">
+            <ShellContent Route="QrScannerPage" ContentTemplate="{DataTemplate views:QrScannerPage}" />
+        </Tab>
+        <Tab Route="TourPageTab" Title="" Icon="{AppThemeBinding Light=ic_tours.png, Dark=ic_tours_dark.png}">
+            <ShellContent Route="TourPage" ContentTemplate="{DataTemplate views:TourPage}" />
+        </Tab>
+        <Tab Route="ProfilePageTab" Title="" Icon="{AppThemeBinding Light=ic_profile.png, Dark=ic_profile_dark.png}">
+            <ShellContent Route="ProfilePage" ContentTemplate="{DataTemplate views:ProfilePage}" />
+        </Tab>
+    </TabBar>
+</Shell>

@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodel="clr-namespace:Mobile.ViewModels"
+             xmlns:model="clr-namespace:Mobile.Models"
+             x:Class="Mobile.Views.HomePage"
+             x:DataType="viewmodel:HomePageViewModel"
+             Title="{Binding Title}"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             xmlns:controls="clr-namespace:Mobile.Controls"
+             xmlns:converters="clr-namespace:Mobile.Converters"
+             xmlns:root="clr-namespace:Mobile"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}">
+
+    <ContentPage.Resources>
+        <ResourceDictionary>
+            <converters:DistanceConverter x:Key="DistanceConverter" />
+        </ResourceDictionary>
+    </ContentPage.Resources>
+
+    <Grid>
+        <Grid Margin="0,0,0,90">
+            <RefreshView Command="{Binding GetPoisCommand}" IsRefreshing="{Binding IsBusy}" RefreshColor="{StaticResource Primary}">
+                <ScrollView>
+                    <VerticalStackLayout Spacing="25" Padding="15,20,15,20">
+                        
+                        <!-- 1. Header -->
+                        <Grid ColumnDefinitions="*, Auto">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Text="Chào buổi sáng 👋" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" />
+                                <Label Text="Vinh Khanh Food Tour" FontSize="20" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                            </VerticalStackLayout>
+                            <Border Grid.Column="1" StrokeShape="RoundRectangle 20" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" HeightRequest="40" WidthRequest="40">
+                                <Label Text="🔔" HorizontalOptions="Center" VerticalOptions="Center" FontSize="16" />
+                            </Border>
+                        </Grid>
+
+                        <!-- 2. Search Bar -->
+                        <Border StrokeShape="RoundRectangle 25" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" HeightRequest="50" Margin="0,5,0,5">
+                            <Border.Shadow>
+                                <Shadow Brush="Black" Offset="0,4" Radius="10" Opacity="0.08" />
+                            </Border.Shadow>
+                            <Grid ColumnDefinitions="Auto, *">
+                                <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="15,0,10,0" />
+                                <Entry Grid.Column="1" Placeholder="Tìm kiếm..." Text="{Binding SearchText}" BackgroundColor="Transparent" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" PlaceholderColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" VerticalOptions="Center" Margin="0,0,15,0" />
+                            </Grid>
+                        </Border>
+
+                        <!-- 3. Filter Area (Minimalist Tags) -->
+                        <CollectionView ItemsSource="{Binding Categories}"
+                                        SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"
+                                        SelectionMode="Single"
+                                        HeightRequest="45"
+                                        Margin="-15,15,-15,10">
+                            <CollectionView.ItemsLayout>
+                                <LinearItemsLayout Orientation="Horizontal" ItemSpacing="10" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.Header>
+                                <BoxView WidthRequest="15" Color="Transparent" />
+                            </CollectionView.Header>
+                            <CollectionView.Footer>
+                                <BoxView WidthRequest="15" Color="Transparent" />
+                            </CollectionView.Footer>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="x:String">
+                                    <Border StrokeShape="RoundRectangle 20"
+                                            StrokeThickness="1"
+                                            Padding="20,0"
+                                            HeightRequest="40"
+                                            VerticalOptions="Center"
+                                            BackgroundColor="Transparent">
+                                        <VisualStateManager.VisualStateGroups>
+                                            <VisualStateGroup Name="CommonStates">
+                                                <VisualState Name="Normal">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="Transparent" />
+                                                        <Setter Property="Stroke" Value="#404040" />
+                                                        <Setter TargetName="CategoryLabel" Property="Label.TextColor" Value="#A0A0A0" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                                <VisualState Name="Selected">
+                                                    <VisualState.Setters>
+                                                        <Setter Property="BackgroundColor" Value="#512BD4" />
+                                                        <Setter Property="Stroke" Value="#512BD4" />
+                                                        <Setter TargetName="CategoryLabel" Property="Label.TextColor" Value="White" />
+                                                    </VisualState.Setters>
+                                                </VisualState>
+                                            </VisualStateGroup>
+                                        </VisualStateManager.VisualStateGroups>
+                                        <Label x:Name="CategoryLabel" 
+                                               Text="{Binding .}" 
+                                               FontSize="13" 
+                                               FontAttributes="Bold"
+                                               VerticalOptions="Center" 
+                                               HorizontalOptions="Center" />
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+
+                        <!-- 4. Section 'Đang Hot' (Horizontal) -->
+                        <VerticalStackLayout Spacing="15">
+                            <Grid ColumnDefinitions="*, Auto">
+                            <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center" Margin="0, 10, 0, 5">
+                                <Label FontFamily="MaterialIcons" Text="&#xE3C8;" FontSize="22" TextColor="#FF8A65" VerticalOptions="Center" />
+                                <Label Text="Đang Hot" FontSize="18" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                                <Label Grid.Column="1" Text="Xem tất cả" FontSize="13" TextColor="{StaticResource Primary}" VerticalOptions="Center" FontAttributes="Bold" />
+                            </Grid>
+
+                            <CollectionView ItemsSource="{Binding Pois}" ItemsLayout="HorizontalList" HeightRequest="220" SelectionMode="None">
+                                <CollectionView.EmptyView>
+                                    <Label Text="Chưa có quán đã duyệt để hiển thị." TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" FontSize="13" Margin="0,20,0,0" />
+                                </CollectionView.EmptyView>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="model:PoiModel">
+                                        <Border Margin="0,5,15,15" StrokeShape="RoundRectangle 20" StrokeThickness="0" BackgroundColor="White" WidthRequest="260">
+                                            <Border.Shadow>
+                                                <Shadow Brush="Black" Offset="0,4" Radius="10" Opacity="0.1" />
+                                            </Border.Shadow>
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodel:HomePageViewModel}}, Path=GoToDetailsCommand}" CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+
+                                            <Grid RowDefinitions="120, *">
+                                                <Image Grid.Row="0" Source="{Binding ImageUrl}" Aspect="AspectFill" HeightRequest="120" />
+                                                <VerticalStackLayout Grid.Row="1" Padding="12" Spacing="6" VerticalOptions="Center">
+                                                    <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" TextColor="#333333" MaxLines="1" LineBreakMode="TailTruncation" />
+                                                    <Label Text="{Binding TagSummary}" FontSize="11" TextColor="#FF6B35" MaxLines="1" LineBreakMode="TailTruncation" />
+                                                    <HorizontalStackLayout Spacing="6" VerticalOptions="Center">
+                                                        <Label Text="📍" FontSize="13" TextColor="#FF3B30" VerticalOptions="Center" />
+                                                        <Label Text="{Binding Address}" FontSize="13" TextColor="#666666" MaxLines="1" LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                                                    </HorizontalStackLayout>
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+
+                        <!-- 4.5. Section 'Quán gần bạn' (Horizontal) -->
+                        <VerticalStackLayout Spacing="15">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center" Margin="0, 10, 0, 5">
+                                    <Label FontFamily="MaterialIcons" Text="&#xE55F;" FontSize="22" TextColor="#FF5252" VerticalOptions="Center" />
+                                    <Label Text="Gần bạn nhất" FontSize="18" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" VerticalOptions="Center" />
+                                </HorizontalStackLayout>
+                            </Grid>
+
+                            <CollectionView ItemsSource="{Binding NearbyPois}" ItemsLayout="HorizontalList" HeightRequest="220" SelectionMode="None">
+                                <CollectionView.EmptyView>
+                                    <Label Text="Chưa có quán gần bạn trong dữ liệu đã duyệt." TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" FontSize="13" Margin="0,20,0,0" />
+                                </CollectionView.EmptyView>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="model:PoiModel">
+                                        <Border Margin="0,5,15,10" StrokeShape="RoundRectangle 20" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" WidthRequest="260">
+                                            <Border.Shadow>
+                                                <Shadow Brush="Black" Offset="0,4" Radius="10" Opacity="0.08" />
+                                            </Border.Shadow>
+                                            <Border.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodel:HomePageViewModel}}, Path=GoToDetailsCommand}" CommandParameter="{Binding .}" />
+                                            </Border.GestureRecognizers>
+
+                                            <Grid RowDefinitions="140, *">
+                                                <Image Grid.Row="0" Source="{Binding ImageUrl}" Aspect="AspectFill" HeightRequest="140" />
+                                                <VerticalStackLayout Grid.Row="1" Padding="15,12" Spacing="4" VerticalOptions="Center">
+                                                    <Label Text="{Binding Name}" FontSize="16" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" MaxLines="1" LineBreakMode="TailTruncation" />
+                                                    <Label Text="{Binding TagSummary}" FontSize="11" TextColor="#FF6B35" MaxLines="1" LineBreakMode="TailTruncation" />
+                                                    <HorizontalStackLayout Spacing="4">
+                                                        <Border StrokeThickness="0" BackgroundColor="#FFEBEB" Padding="6,2" StrokeShape="RoundRectangle 4">
+                                                            <Label Text="{Binding Distance, Converter={StaticResource DistanceConverter}}" FontSize="10" TextColor="#FF3B30" FontAttributes="Bold" VerticalOptions="Center" />
+                                                        </Border>
+                                                        <Label Text="{Binding Address}" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" MaxLines="1" LineBreakMode="TailTruncation" VerticalOptions="Center" />
+                                                    </HorizontalStackLayout>
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+
+                        <!-- 5. Section 'Gợi ý cho bạn' (Vertical List) -->
+                        <VerticalStackLayout Spacing="15" Margin="0,15,0,0">
+                            <HorizontalStackLayout Spacing="10" VerticalOptions="Center" Margin="0, 10, 0, 5">
+                                <Label FontFamily="MaterialIcons" Text="&#xE65F;" FontSize="22" TextColor="#FFD54F" VerticalOptions="Center" />
+                                <Label Text="Gợi ý cho bạn" FontSize="18" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+
+                            <CollectionView ItemsSource="{Binding Pois}" SelectionMode="None">
+                                <CollectionView.EmptyView>
+                                    <Label Text="Chưa có dữ liệu quán ăn. Hãy kiểm tra API đang chạy và POI đã được admin duyệt." TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" FontSize="13" Margin="0,10,0,0" />
+                                </CollectionView.EmptyView>
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="model:PoiModel">
+                                        <Grid ColumnDefinitions="Auto, *" Margin="0,0,0,15">
+                                            <Grid.GestureRecognizers>
+                                                <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodel:HomePageViewModel}}, Path=GoToDetailsCommand}" CommandParameter="{Binding .}" />
+                                            </Grid.GestureRecognizers>
+                                            
+                                            <!-- Cột trái: Ảnh đại diện (Sử dụng Border thay cho Frame để tương thích .NET 9+) -->
+                                            <Border Grid.Column="0" StrokeShape="RoundRectangle 10" StrokeThickness="0" HeightRequest="70" WidthRequest="70" Margin="0,0,15,0">
+                                                <Image Source="{Binding ImageUrl}" Aspect="AspectFill" />
+                                            </Border>
+                                            
+                                            <!-- Cột phải: Thông tin -->
+                                            <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="4">
+                                                <Label Text="{Binding Name}" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" FontSize="15" MaxLines="1" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding TagSummary}" TextColor="#FF6B35" FontSize="12" MaxLines="1" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding Address}" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" FontSize="13" MaxLines="2" LineBreakMode="TailTruncation" />
+                                            </VerticalStackLayout>
+                                        </Grid>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+
+                    </VerticalStackLayout>
+                </ScrollView>
+            </RefreshView>
+        </Grid>
+        <controls:BottomTabBar />
+    </Grid>
+</ContentPage>

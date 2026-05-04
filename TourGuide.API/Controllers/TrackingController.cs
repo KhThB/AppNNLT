@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using TourGuide.API.Contracts;
 using TourGuide.API.Services.Abstractions;
+using TourGuide.Domain.Models;
 
 namespace TourGuide.API.Controllers;
 
@@ -31,5 +33,12 @@ public sealed class TrackingController : ControllerBase
     public IActionResult OnlineCount()
     {
         return Ok(new { activeUsers = _analyticsService.GetActiveUserCount() });
+    }
+
+    [Authorize(Roles = KnownRoles.Admin)]
+    [HttpGet("online-devices")]
+    public ActionResult<IReadOnlyList<OnlineDeviceResponse>> OnlineDevices()
+    {
+        return Ok(_analyticsService.GetOnlineDevices());
     }
 }

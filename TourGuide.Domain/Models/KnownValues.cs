@@ -37,6 +37,15 @@ public static class SubscriptionPackages
     public const string Boost = "Boost";
 }
 
+public static class BillingStatuses
+{
+    public const string PendingPayment = "PendingPayment";
+    public const string Active = "Active";
+    public const string Cancelled = "Cancelled";
+    public const string Failed = "Failed";
+    public const string Expired = "Expired";
+}
+
 public static class NarrationStatuses
 {
     public const string Started = "Started";

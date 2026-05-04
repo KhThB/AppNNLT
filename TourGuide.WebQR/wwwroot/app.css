@@ -115,6 +115,24 @@ body {
     padding-right: 4px;
 }
 
+.content-status,
+.play-status {
+    padding: 10px 12px;
+    margin-bottom: 14px;
+    border-radius: 12px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: #92400e;
+    font-size: 0.9rem;
+    line-height: 1.45;
+}
+
+.play-status.error {
+    background: rgba(220, 38, 38, 0.12);
+    border-color: rgba(220, 38, 38, 0.25);
+    color: #991b1b;
+}
+
 /* Audio Player */
 .audio-container {
     width: 100%;

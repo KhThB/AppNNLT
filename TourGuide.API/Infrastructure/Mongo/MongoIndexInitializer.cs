@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using MongoDB.Bson;
+using TourGuide.API.Services.Implementations;
 using TourGuide.Domain.Models;
 
 namespace TourGuide.API.Infrastructure.Mongo;
@@ -19,6 +20,10 @@ public sealed class MongoIndexInitializer
         await NormalizeLegacyGeoJsonAsync("TrackingData", cancellationToken);
         await NormalizeLegacyPoiFieldsAsync(cancellationToken);
         await NormalizeLegacyUserIdentityAsync(cancellationToken);
+        await BackfillPoiTagsAsync(cancellationToken);
+        await NormalizePoiRadiusAsync(cancellationToken);
+        await BackfillApprovedPoiSnapshotsAsync(cancellationToken);
+        await RepairDuplicateQrCountedWindowsAsync(cancellationToken);
 
         await _collections.Pois.Indexes.CreateManyAsync(
             new[]
@@ -45,6 +50,20 @@ public sealed class MongoIndexInitializer
                     .Descending(x => x.OccurredAt)),
             cancellationToken: cancellationToken);
 
+        await _collections.QrScanLogs.Indexes.CreateOneAsync(
+            new CreateIndexModel<QrScanLog>(
+                Builders<QrScanLog>.IndexKeys
+                    .Ascending(x => x.PoiId)
+                    .Ascending(x => x.VisitorId)
+                    .Ascending(x => x.WindowKey),
+                new CreateIndexOptions<QrScanLog>
+                {
+                    Name = "ux_qr_counted_window",
+                    Unique = true,
+                    PartialFilterExpression = Builders<QrScanLog>.Filter.Eq(x => x.Counted, true),
+                }),
+            cancellationToken: cancellationToken);
+
         await _collections.NarrationLogs.Indexes.CreateOneAsync(
             new CreateIndexModel<NarrationLog>(
                 Builders<NarrationLog>.IndexKeys
@@ -52,6 +71,16 @@ public sealed class MongoIndexInitializer
                     .Ascending(x => x.VisitorId)
                     .Ascending(x => x.SessionId)
                     .Descending(x => x.OccurredAt)),
+            cancellationToken: cancellationToken);
+
+        await _collections.NarrationLogs.Indexes.CreateOneAsync(
+            new CreateIndexModel<NarrationLog>(
+                Builders<NarrationLog>.IndexKeys
+                    .Ascending(x => x.PoiId)
+                    .Ascending(x => x.VisitorId)
+                    .Ascending(x => x.SessionId)
+                    .Ascending(x => x.WindowKey)
+                    .Descending(x => x.StartedAt)),
             cancellationToken: cancellationToken);
 
         await _collections.TranslationCaches.Indexes.CreateOneAsync(
@@ -66,6 +95,13 @@ public sealed class MongoIndexInitializer
             new CreateIndexModel<UserSession>(
                 Builders<UserSession>.IndexKeys.Ascending(x => x.SessionId),
                 new CreateIndexOptions { Unique = true }),
+            cancellationToken: cancellationToken);
+
+        await _collections.PoiReviewSnapshots.Indexes.CreateOneAsync(
+            new CreateIndexModel<PoiReviewSnapshot>(
+                Builders<PoiReviewSnapshot>.IndexKeys
+                    .Ascending(x => x.PoiId)
+                    .Descending(x => x.ApprovedAt)),
             cancellationToken: cancellationToken);
     }
 
@@ -102,6 +138,82 @@ public sealed class MongoIndexInitializer
         await collection.UpdateManyAsync(
             boostExpireFilter,
             new PipelineUpdateDefinition<BsonDocument>(boostExpireUpdates),
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task BackfillPoiTagsAsync(CancellationToken cancellationToken)
+    {
+        var pois = await _collections.Pois.Find(FilterDefinition<POI>.Empty).ToListAsync(cancellationToken);
+        foreach (var poi in pois.Where(x => BusinessRules.NormalizeTags(x.Tags).Count == 0))
+        {
+            await _collections.Pois.UpdateOneAsync(
+                x => x.Id == poi.Id,
+                Builders<POI>.Update.Set(x => x.Tags, BusinessRules.InferTags(poi.Name, poi.SourceDescription).ToList()),
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task BackfillApprovedPoiSnapshotsAsync(CancellationToken cancellationToken)
+    {
+        var approvedPois = await _collections.Pois.Find(x => x.Status == PoiWorkflowStatuses.Approved)
+            .ToListAsync(cancellationToken);
+        if (approvedPois.Count == 0)
+        {
+            return;
+        }
+
+        var poiIds = approvedPois.Select(x => x.Id).ToList();
+        var existingPoiIds = await _collections.PoiReviewSnapshots
+            .Distinct<string>(nameof(PoiReviewSnapshot.PoiId), Builders<PoiReviewSnapshot>.Filter.In(x => x.PoiId, poiIds))
+            .ToListAsync(cancellationToken);
+        var existing = new HashSet<string>(existingPoiIds);
+
+        foreach (var poi in approvedPois.Where(x => !existing.Contains(x.Id)))
+        {
+            var approvedAt = poi.ReviewedAt ?? poi.UpdatedAt;
+            var snapshot = BusinessRules.CreateApprovedSnapshot(poi, poi.ReviewedBy, approvedAt);
+            await _collections.PoiReviewSnapshots.InsertOneAsync(snapshot, cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task NormalizePoiRadiusAsync(CancellationToken cancellationToken)
+    {
+        var pois = await _collections.Pois.Find(FilterDefinition<POI>.Empty).ToListAsync(cancellationToken);
+        foreach (var poi in pois)
+        {
+            var effectiveRadius = BusinessRules.GetEffectiveRadius(poi);
+            if (Math.Abs(poi.Radius - effectiveRadius) < 0.001)
+            {
+                continue;
+            }
+
+            await _collections.Pois.UpdateOneAsync(
+                x => x.Id == poi.Id,
+                Builders<POI>.Update.Set(x => x.Radius, effectiveRadius),
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task RepairDuplicateQrCountedWindowsAsync(CancellationToken cancellationToken)
+    {
+        var counted = await _collections.QrScanLogs.Find(x => x.Counted)
+            .SortBy(x => x.OccurredAt)
+            .ToListAsync(cancellationToken);
+
+        var duplicateIds = counted
+            .GroupBy(x => new { x.PoiId, x.VisitorId, x.WindowKey })
+            .SelectMany(group => group.Skip(1).Select(x => x.Id))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToList();
+
+        if (duplicateIds.Count == 0)
+        {
+            return;
+        }
+
+        await _collections.QrScanLogs.UpdateManyAsync(
+            x => duplicateIds.Contains(x.Id),
+            Builders<QrScanLog>.Update.Set(x => x.Counted, false),
             cancellationToken: cancellationToken);
     }
 

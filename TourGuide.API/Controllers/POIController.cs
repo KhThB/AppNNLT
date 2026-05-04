@@ -32,6 +32,7 @@ public sealed class POIController : ControllerBase
     public async Task<ActionResult<PagedResponse<PoiListItemResponse>>> Query(
         [FromQuery] string search = "",
         [FromQuery] string status = "",
+        [FromQuery] string tag = "",
         [FromQuery] string ownerId = "",
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 10,
@@ -41,10 +42,25 @@ public sealed class POIController : ControllerBase
         {
             Search = search,
             Status = status,
+            Tag = tag,
             OwnerId = ownerId,
             Page = page,
             PageSize = pageSize,
         }, cancellationToken));
+    }
+
+    [Authorize(Roles = KnownRoles.Admin)]
+    [HttpGet("map-summary")]
+    public async Task<ActionResult<IReadOnlyList<PoiMapPointResponse>>> MapSummary(CancellationToken cancellationToken)
+    {
+        return Ok(await _poiService.GetMapSummaryAsync(cancellationToken));
+    }
+
+    [Authorize(Roles = KnownRoles.Admin)]
+    [HttpGet("submitted-with-changes")]
+    public async Task<ActionResult<IReadOnlyList<PoiApprovalItemResponse>>> SubmittedWithChanges(CancellationToken cancellationToken)
+    {
+        return Ok(await _poiService.GetSubmittedWithChangesAsync(cancellationToken));
     }
 
     [Authorize(Roles = $"{KnownRoles.Admin},{KnownRoles.Merchant}")]
@@ -56,6 +72,7 @@ public sealed class POIController : ControllerBase
 
     [HttpGet("approved")]
     public async Task<ActionResult<PagedResponse<PoiListItemResponse>>> GetApproved(
+        [FromQuery] string tag = "",
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken cancellationToken = default)
@@ -63,6 +80,7 @@ public sealed class POIController : ControllerBase
         return Ok(await _poiService.QueryAsync(new PoiQueryRequest
         {
             Status = PoiWorkflowStatuses.Approved,
+            Tag = tag,
             Page = page,
             PageSize = pageSize,
         }, cancellationToken));
@@ -95,6 +113,14 @@ public sealed class POIController : ControllerBase
     public async Task<ActionResult<PoiListItemResponse>> Update(string id, [FromBody] PoiUpdateRequest request, CancellationToken cancellationToken)
     {
         return Ok(await _poiService.UpdateAsync(id, User, request, cancellationToken));
+    }
+
+    [Authorize(Roles = $"{KnownRoles.Admin},{KnownRoles.Merchant}")]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(string id, CancellationToken cancellationToken)
+    {
+        await _poiService.ArchiveAsync(id, User, cancellationToken);
+        return NoContent();
     }
 
     [Authorize(Roles = $"{KnownRoles.Admin},{KnownRoles.Merchant}")]

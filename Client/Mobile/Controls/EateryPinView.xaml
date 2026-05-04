@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Mobile.Controls.EateryPinView">
+    <Grid HorizontalOptions="Center" VerticalOptions="Start">
+        <VerticalStackLayout HorizontalOptions="Center" Spacing="0">
+            <VerticalStackLayout.Shadow>
+                <Shadow x:Name="PinShadow" Brush="#512BD4" Offset="0,4" Radius="12" Opacity="0.5" />
+            </VerticalStackLayout.Shadow>
+
+            <!-- Thân Bong bóng -->
+            <Border x:Name="PinBorder" 
+                    StrokeThickness="1" 
+                    Stroke="Transparent"
+                    StrokeShape="RoundRectangle 25"
+                    Padding="6,6,12,6"
+                    MaximumWidthRequest="220"
+                    HorizontalOptions="Center">
+                
+                <!-- Glassmorphism Gradient -->
+                <Border.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#CC512BD4" Offset="0.0" />
+                        <GradientStop Color="#CCFF6B35" Offset="1.0" />
+                    </LinearGradientBrush>
+                </Border.Background>
+
+                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                    <!-- Thumbnail Image -->
+                    <Border Grid.Column="0"
+                            StrokeThickness="0" 
+                            StrokeShape="RoundRectangle 18"
+                            HeightRequest="36" 
+                            WidthRequest="36"
+                            BackgroundColor="White"
+                            HorizontalOptions="Center" 
+                            VerticalOptions="Center">
+                        <Image x:Name="pinImage" Aspect="AspectFill" />
+                    </Border>
+                    
+                    <!-- Eatery Name -->
+                    <Label x:Name="pinNameLabel"
+                           Text="{Binding Name}"
+                           Grid.Column="1"
+                           TextColor="White"
+                           FontAttributes="Bold"
+                           FontSize="13"
+                           MaxLines="2"
+                           LineBreakMode="TailTruncation"
+                           VerticalOptions="Center" />
+                </Grid>
+            </Border>
+
+            <!-- Đuôi chỉ hướng (Pointer) -->
+            <Polygon Points="0,0 8,10 16,0"
+                     Fill="#CC512BD4"
+                     HorizontalOptions="Center"
+                     Margin="0,-1,0,0"/>
+        </VerticalStackLayout>
+
+        <!-- Hot Badge Icon -->
+        <Label x:Name="HotBadge" 
+               Text="🔥" 
+               FontSize="18" 
+               IsVisible="False"
+               HorizontalOptions="End" 
+               VerticalOptions="Start"
+               TranslationX="5"
+               TranslationY="-5" />
+    </Grid>
+</ContentView>

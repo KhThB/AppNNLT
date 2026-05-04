@@ -17,8 +17,8 @@
     {
         <div class="d-flex justify-space-between align-center mb-6">
             <div>
-                <MudText Typo="Typo.h4">Owner dashboard</MudText>
-                <MudText Typo="Typo.body2">Theo dõi nhiều POI, conversion và alert nghiệp vụ.</MudText>
+                <MudText Typo="Typo.h4">Dashboard chủ quán</MudText>
+                <MudText Typo="Typo.body2">Theo dõi POI, lượt quét QR, lượt nghe và alert vận hành.</MudText>
             </div>
             <div class="d-flex gap-2">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Href="/merchant/register">Tạo POI</MudButton>
@@ -27,28 +27,22 @@
         </div>
 
         <MudGrid Class="mb-6">
-            <MudItem xs="12" sm="6" md="3">
+            <MudItem xs="12" sm="6" md="4">
                 <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
                     <MudText Typo="Typo.caption">Tổng POI</MudText>
                     <MudText Typo="Typo.h4">@_overview.TotalPois</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="6" md="3">
+            <MudItem xs="12" sm="6" md="4">
                 <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
                     <MudText Typo="Typo.caption">QR counted</MudText>
                     <MudText Typo="Typo.h4">@_overview.CountedQrScans</MudText>
                 </MudPaper>
             </MudItem>
-            <MudItem xs="12" sm="6" md="3">
+            <MudItem xs="12" sm="6" md="4">
                 <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
                     <MudText Typo="Typo.caption">TTS counted</MudText>
                     <MudText Typo="Typo.h4">@_overview.CountedTtsPlays</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="12" sm="6" md="3">
-                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
-                    <MudText Typo="Typo.caption">MRR</MudText>
-                    <MudText Typo="Typo.h4">@_overview.MonthlyRecurringRevenue.ToString("N0") VNĐ</MudText>
                 </MudPaper>
             </MudItem>
         </MudGrid>
@@ -66,7 +60,7 @@
                         <MudTable Items="_overview.TopPois" Dense="true">
                             <HeaderContent>
                                 <MudTh>POI</MudTh>
-                                <MudTh>Status</MudTh>
+                                <MudTh>Trạng thái</MudTh>
                                 <MudTh>QR</MudTh>
                                 <MudTh>TTS</MudTh>
                             </HeaderContent>
@@ -142,7 +136,6 @@
         public int TotalPois { get; set; }
         public int CountedQrScans { get; set; }
         public int CountedTtsPlays { get; set; }
-        public decimal MonthlyRecurringRevenue { get; set; }
         public List<PoiPerformance> TopPois { get; set; } = new();
         public List<AlertItem> Alerts { get; set; } = new();
     }

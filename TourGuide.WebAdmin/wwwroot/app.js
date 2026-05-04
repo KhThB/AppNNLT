@@ -1,68 +1,121 @@
-// 1. BẢN ĐỒ CLUSTER MAP (Cho Dashboard Admin)
 window.renderClusterMap = (mapId, points) => {
     try {
         const el = document.getElementById(mapId);
-        if (!el) return;
+        if (!el || typeof L === 'undefined') return;
 
         if (el._leaflet_id) {
             el._leaflet_id = null;
             el.innerHTML = "";
         }
-        if (window.myMap) { window.myMap.remove(); }
+        if (window.myMap) window.myMap.remove();
 
-        window.myMap = L.map(mapId).setView([10.7628, 106.7005], 14); // Tọa độ trung tâm Vĩnh Khánh
+        window.myMap = L.map(mapId).setView([10.7628, 106.7005], 14);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.myMap);
 
-        if (points && points.length > 0) {
-            var markers = L.markerClusterGroup({
-                maxClusterRadius: 50 // Bán kính gộp nhóm
-            });
-
+        if (points && points.length > 0 && typeof L.markerClusterGroup === 'function') {
+            const markers = L.markerClusterGroup({ maxClusterRadius: 50 });
             points.forEach(p => {
-                // p[0] là lat, p[1] là lng
-                var marker = L.marker([p[0], p[1]]);
-                // Nếu có title thì add popup
-                if(p[2]) marker.bindPopup("<b>" + p[2] + "</b>");
+                const marker = L.marker([p[0], p[1]]);
+                if (p[2]) marker.bindPopup("<b>" + p[2] + "</b>");
                 markers.addLayer(marker);
             });
-
             window.myMap.addLayer(markers);
         }
 
-        var count = 0;
-        var interval = setInterval(function () {
+        let count = 0;
+        const interval = setInterval(function () {
             window.myMap.invalidateSize();
             count++;
             if (count > 10) clearInterval(interval);
         }, 100);
-
     } catch (e) {
-        console.log("ClusterMap chưa sẵn sàng.", e);
+        console.log("Cluster map chưa sẵn sàng.", e);
     }
 };
-window.renderHeatmapMap = (mapId, points) => {
-    const el = document.getElementById(mapId);
-    if (!el || typeof L === 'undefined') {
-        return;
+
+window.heatmapMaps = window.heatmapMaps || {};
+window.heatmapOnlineLayers = window.heatmapOnlineLayers || {};
+
+window.updateOnlineDevicesOnMap = (mapId, devices) => {
+    const map = window.heatmapMaps?.[mapId] || window.heatmapMap;
+    if (!map || typeof L === 'undefined') return;
+
+    if (window.heatmapOnlineLayers[mapId]) {
+        map.removeLayer(window.heatmapOnlineLayers[mapId]);
     }
+
+    const layer = L.layerGroup();
+    (devices || []).forEach(device => {
+        const lat = device.latitude ?? device.Latitude;
+        const lng = device.longitude ?? device.Longitude;
+        if (!lat || !lng) return;
+
+        const name = device.deviceName ?? device.DeviceName ?? 'Thiết bị';
+        const platform = device.platform ?? device.Platform ?? '';
+        const lastSeen = device.lastSeenAt ?? device.LastSeenAt ?? '';
+        L.circleMarker([lat, lng], {
+            radius: 7,
+            fillColor: '#16a34a',
+            color: '#166534',
+            weight: 2,
+            fillOpacity: 0.9
+        }).bindTooltip(`${name}<br/>${platform}<br/>${lastSeen}`).addTo(layer);
+    });
+
+    layer.addTo(map);
+    window.heatmapOnlineLayers[mapId] = layer;
+};
+
+window.renderHeatmapMap = (mapId, points, pois, onlineDevices) => {
+    const el = document.getElementById(mapId);
+    if (!el || typeof L === 'undefined') return;
 
     if (el._leaflet_id) {
         el._leaflet_id = null;
         el.innerHTML = "";
     }
 
-    if (window.heatmapMap) {
+    if (window.heatmapMaps[mapId]) {
+        window.heatmapMaps[mapId].remove();
+        if (window.heatmapMap === window.heatmapMaps[mapId]) {
+            window.heatmapMap = null;
+        }
+    } else if (window.heatmapMap) {
         window.heatmapMap.remove();
     }
 
     window.heatmapMap = L.map(mapId).setView([10.7628, 106.7005], 14);
+    window.heatmapMaps[mapId] = window.heatmapMap;
+    delete window.heatmapOnlineLayers[mapId];
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(window.heatmapMap);
+
+    const poiPoints = pois || [];
+    if (poiPoints.length > 0 && typeof L.markerClusterGroup === 'function') {
+        const poiMarkers = L.markerClusterGroup({ maxClusterRadius: 45 });
+        poiPoints.forEach(poi => {
+            const lat = poi.latitude ?? poi.Latitude;
+            const lng = poi.longitude ?? poi.Longitude;
+            if (!lat || !lng) return;
+
+            const name = poi.name ?? poi.Name ?? 'POI';
+            const status = poi.status ?? poi.Status ?? '';
+            const packageName = poi.subscriptionPackage ?? poi.SubscriptionPackage ?? '';
+            const marker = L.marker([lat, lng]);
+            marker.bindPopup(`<strong>${name}</strong><br/>${status} - ${packageName}`);
+            poiMarkers.addLayer(marker);
+        });
+        window.heatmapMap.addLayer(poiMarkers);
+    }
+
+    window.updateOnlineDevicesOnMap(mapId, onlineDevices || []);
 
     if (!points || points.length === 0) {
         const emptyControl = L.control({ position: 'topright' });
         emptyControl.onAdd = function () {
             const div = L.DomUtil.create('div', 'heatmap-empty-state');
-            div.innerText = 'Chưa có dữ liệu tracking trong khung thời gian này';
+            div.innerText = poiPoints.length > 0
+                ? `Đang hiển thị ${poiPoints.length} POI. Chưa có tracking trong khung thời gian này.`
+                : 'Chưa có dữ liệu tracking trong khung thời gian này.';
             return div;
         };
         emptyControl.addTo(window.heatmapMap);
@@ -89,45 +142,42 @@ window.renderHeatmapMap = (mapId, points) => {
 
     setTimeout(() => window.heatmapMap.invalidateSize(), 150);
 };
-window.initStaticMap = function (mapId, lat, lng, title) {
-    var container = document.getElementById(mapId);
-    if (!container) return;
-    if (container._leaflet_id) { container._leaflet_id = null; container.innerHTML = ""; }
 
-    var map = L.map(mapId).setView([lat, lng], 17);
+window.initStaticMap = function (mapId, lat, lng, title) {
+    const container = document.getElementById(mapId);
+    if (!container || typeof L === 'undefined') return;
+    if (container._leaflet_id) {
+        container._leaflet_id = null;
+        container.innerHTML = "";
+    }
+
+    const map = L.map(mapId).setView([lat, lng], 17);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
     L.marker([lat, lng]).addTo(map).bindPopup(title).openPopup();
-
-    // Tự động sửa kích thước
-    setTimeout(() => { map.invalidateSize(); }, 200);
+    setTimeout(() => map.invalidateSize(), 200);
 };
-// 2. BẢN ĐỒ CHỌN VỊ TRÍ (Cho Chủ Quán)
+
 window.initMapPicker = function (mapId, dotNetHelper) {
-    var container = document.getElementById(mapId);
-    if (!container) return;
+    const container = document.getElementById(mapId);
+    if (!container || typeof L === 'undefined') return;
 
     if (container._leaflet_id) {
         container._leaflet_id = null;
         container.innerHTML = "";
     }
 
-    var centerLat = 10.7628;
-    var centerLng = 106.7005;
-
-    var map = L.map(mapId).setView([centerLat, centerLng], 17);
-
+    const centerLat = 10.7628;
+    const centerLng = 106.7005;
+    const map = L.map(mapId).setView([centerLat, centerLng], 17);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
     }).addTo(map);
 
-    var marker = L.marker([centerLat, centerLng], { draggable: true }).addTo(map);
+    const marker = L.marker([centerLat, centerLng], { draggable: true }).addTo(map);
+    const sendCoords = (lat, lng) => dotNetHelper.invokeMethodAsync('UpdateCoordinates', lat, lng);
 
-    function sendCoords(lat, lng) {
-        dotNetHelper.invokeMethodAsync('UpdateCoordinates', lat, lng);
-    }
-
-    marker.on('dragend', function (e) {
-        var pos = marker.getLatLng();
+    marker.on('dragend', function () {
+        const pos = marker.getLatLng();
         sendCoords(pos.lat, pos.lng);
     });
 
@@ -136,11 +186,84 @@ window.initMapPicker = function (mapId, dotNetHelper) {
         sendCoords(e.latlng.lat, e.latlng.lng);
     });
 
-    // VŨ KHÍ TỐI THƯỢNG: Ép vẽ lại mỗi 100ms trong 1 giây đầu tiên
-    var count = 0;
-    var interval = setInterval(function () {
+    let count = 0;
+    const interval = setInterval(function () {
         map.invalidateSize();
         count++;
         if (count >= 10) clearInterval(interval);
     }, 100);
+};
+
+window.poiLocationEditors = window.poiLocationEditors || {};
+
+window.initPoiLocationEditor = function (mapId, lat, lng, radius, dotNetHelper) {
+    const container = document.getElementById(mapId);
+    if (!container || typeof L === 'undefined') return;
+
+    const centerLat = Number(lat) || 10.7628;
+    const centerLng = Number(lng) || 106.7005;
+    const currentRadius = Number(radius) || 50;
+
+    if (window.poiLocationEditors[mapId]) {
+        window.poiLocationEditors[mapId].map.remove();
+        delete window.poiLocationEditors[mapId];
+    }
+
+    if (container._leaflet_id) {
+        container._leaflet_id = null;
+        container.innerHTML = "";
+    }
+
+    const map = L.map(mapId).setView([centerLat, centerLng], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const marker = L.marker([centerLat, centerLng], { draggable: true }).addTo(map);
+    const circle = L.circle([centerLat, centerLng], {
+        radius: currentRadius,
+        color: '#f97316',
+        fillColor: '#fdba74',
+        fillOpacity: 0.22,
+        weight: 2
+    }).addTo(map);
+
+    const updatePosition = (latValue, lngValue, notify) => {
+        marker.setLatLng([latValue, lngValue]);
+        circle.setLatLng([latValue, lngValue]);
+        if (notify && dotNetHelper) {
+            dotNetHelper.invokeMethodAsync('UpdateLocationFromMap', latValue, lngValue);
+        }
+    };
+
+    marker.on('dragend', function () {
+        const pos = marker.getLatLng();
+        updatePosition(pos.lat, pos.lng, true);
+    });
+
+    map.on('click', function (e) {
+        updatePosition(e.latlng.lat, e.latlng.lng, true);
+    });
+
+    window.poiLocationEditors[mapId] = { map, marker, circle };
+    setTimeout(() => map.invalidateSize(), 150);
+};
+
+window.updatePoiLocationRadius = function (mapId, radius) {
+    const editor = window.poiLocationEditors?.[mapId];
+    if (!editor) return;
+    editor.circle.setRadius(Number(radius) || 50);
+    setTimeout(() => editor.map.invalidateSize(), 50);
+};
+
+window.updatePoiLocationPosition = function (mapId, lat, lng) {
+    const editor = window.poiLocationEditors?.[mapId];
+    if (!editor) return;
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return;
+    editor.marker.setLatLng([latitude, longitude]);
+    editor.circle.setLatLng([latitude, longitude]);
+    editor.map.setView([latitude, longitude], editor.map.getZoom());
+    setTimeout(() => editor.map.invalidateSize(), 50);
 };

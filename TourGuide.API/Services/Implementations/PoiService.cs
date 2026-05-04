@@ -33,6 +33,7 @@ public sealed class PoiService : IPoiService
             OwnerId = ownerId,
             Name = request.Name.Trim(),
             Address = request.Address.Trim(),
+            Tags = BusinessRules.ResolveSubmittedTags(request.Tags, request.Name, request.SourceDescription),
             SourceLanguage = string.IsNullOrWhiteSpace(request.SourceLanguage) ? "vi" : request.SourceLanguage.Trim(),
             SourceDescription = request.SourceDescription.Trim(),
             Description_VI = request.SourceDescription.Trim(),
@@ -42,13 +43,14 @@ public sealed class PoiService : IPoiService
                 Type = "Point",
                 Coordinates = [request.Longitude, request.Latitude],
             },
-            Radius = request.Radius,
-            SubscriptionPackage = request.SubscriptionPackage,
+            SubscriptionPackage = SubscriptionPackages.Basic,
             Status = PoiWorkflowStatuses.Draft,
             ApprovalStatus = PoiWorkflowStatuses.Draft,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
         };
+        poi.Radius = BusinessRules.GetEffectiveRadius(poi);
+        BusinessRules.ApplyProvidedTranslations(poi, request.TranslatedDescriptions);
 
         poi.ModerationStatus = await _moderationService.EvaluateAsync(poi, cancellationToken);
         await _collections.Pois.InsertOneAsync(poi, cancellationToken: cancellationToken);
@@ -88,6 +90,7 @@ public sealed class PoiService : IPoiService
             Id = poi.Id,
             Name = poi.Name,
             Address = poi.Address,
+            Tags = ResolvePoiTags(poi),
             ImageUrl = poi.ImageUrl,
             Latitude = poi.Location.Coordinates.ElementAtOrDefault(1),
             Longitude = poi.Location.Coordinates.ElementAtOrDefault(0),
@@ -102,6 +105,10 @@ public sealed class PoiService : IPoiService
         {
             filter &= Builders<POI>.Filter.Eq(x => x.Status, request.Status);
         }
+        else
+        {
+            filter &= Builders<POI>.Filter.Ne(x => x.Status, PoiWorkflowStatuses.Archived);
+        }
 
         if (!string.IsNullOrWhiteSpace(request.OwnerId))
         {
@@ -113,7 +120,14 @@ public sealed class PoiService : IPoiService
             var regex = new MongoDB.Bson.BsonRegularExpression(request.Search.Trim(), "i");
             filter &= Builders<POI>.Filter.Or(
                 Builders<POI>.Filter.Regex(x => x.Name, regex),
-                Builders<POI>.Filter.Regex(x => x.Address, regex));
+                Builders<POI>.Filter.Regex(x => x.Address, regex),
+                Builders<POI>.Filter.Regex("Tags", regex));
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Tag))
+        {
+            var normalizedTag = BusinessRules.NormalizeTag(request.Tag);
+            filter &= Builders<POI>.Filter.AnyEq(x => x.Tags, normalizedTag);
         }
 
         var page = Math.Max(request.Page, 1);
@@ -135,6 +149,82 @@ public sealed class PoiService : IPoiService
         };
     }
 
+    public async Task<IReadOnlyList<PoiApprovalItemResponse>> GetSubmittedWithChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var pois = await _collections.Pois.Find(x => x.Status == PoiWorkflowStatuses.Submitted)
+            .SortByDescending(x => x.UpdatedAt)
+            .Limit(100)
+            .ToListAsync(cancellationToken);
+        if (pois.Count == 0)
+        {
+            return Array.Empty<PoiApprovalItemResponse>();
+        }
+
+        var poiIds = pois.Select(x => x.Id).ToList();
+        var snapshots = await _collections.PoiReviewSnapshots.Find(x => poiIds.Contains(x.PoiId))
+            .SortByDescending(x => x.ApprovedAt)
+            .ToListAsync(cancellationToken);
+        var latestSnapshots = snapshots
+            .GroupBy(x => x.PoiId)
+            .ToDictionary(x => x.Key, x => x.First(), StringComparer.OrdinalIgnoreCase);
+
+        return pois.Select(poi =>
+        {
+            latestSnapshots.TryGetValue(poi.Id, out var snapshot);
+            return new PoiApprovalItemResponse
+            {
+                Id = poi.Id,
+                OwnerId = poi.OwnerId,
+                Name = poi.Name,
+                Address = poi.Address,
+                Tags = ResolvePoiTags(poi),
+                Status = poi.Status,
+                ModerationStatus = poi.ModerationStatus,
+                TranslationStatus = poi.TranslationStatus,
+                SourceLanguage = poi.SourceLanguage,
+                SourceDescription = ResolveSourceDescription(poi),
+                TranslatedDescriptions = BusinessRules.GetTargetTranslations(poi),
+                MerchantNote = poi.MerchantNote,
+                SubscriptionPackage = poi.SubscriptionPackage,
+                ImageUrl = poi.ImageUrl,
+                Radius = BusinessRules.GetEffectiveRadius(poi),
+                PriorityLevel = poi.PriorityLevel,
+                BoostPriority = poi.BoostPriority,
+                BoostExpiresAt = poi.BoostExpiresAt,
+                ContentVersion = poi.ContentVersion,
+                CreatedAt = poi.CreatedAt,
+                UpdatedAt = poi.UpdatedAt,
+                Latitude = poi.Location.Coordinates.ElementAtOrDefault(1),
+                Longitude = poi.Location.Coordinates.ElementAtOrDefault(0),
+                CountedQrScanCount = poi.CountedQrScanCount,
+                CountedTtsPlayCount = poi.CountedTtsPlayCount,
+                IsNewPoi = snapshot == null,
+                Changes = BusinessRules.BuildPoiApprovalChanges(snapshot, poi),
+            };
+        }).ToList();
+    }
+
+    public async Task<IReadOnlyList<PoiMapPointResponse>> GetMapSummaryAsync(CancellationToken cancellationToken = default)
+    {
+        var pois = await _collections.Pois.Find(FilterDefinition<POI>.Empty)
+            .ToListAsync(cancellationToken);
+
+        return pois
+            .Where(x => x.Location.Coordinates.Length == 2)
+            .OrderByDescending(BusinessRules.CalculatePriorityScore)
+            .Select(x => new PoiMapPointResponse
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Status = x.Status,
+                Tags = ResolvePoiTags(x),
+                SubscriptionPackage = x.SubscriptionPackage,
+                Latitude = x.Location.Coordinates.ElementAtOrDefault(1),
+                Longitude = x.Location.Coordinates.ElementAtOrDefault(0),
+            })
+            .ToList();
+    }
+
     public async Task<IReadOnlyList<PoiListItemResponse>> GetOwnerPoisAsync(string ownerId, ClaimsPrincipal principal, CancellationToken cancellationToken = default)
     {
         var resolvedOwnerId = BusinessRules.ResolveAccessibleOwnerId(
@@ -142,7 +232,7 @@ public sealed class PoiService : IPoiService
             principal.FindFirstValue(ClaimTypes.Role),
             principal.FindFirstValue(ClaimTypes.NameIdentifier));
 
-        var items = await _collections.Pois.Find(x => x.OwnerId == resolvedOwnerId)
+        var items = await _collections.Pois.Find(x => x.OwnerId == resolvedOwnerId && x.Status != PoiWorkflowStatuses.Archived)
             .SortByDescending(x => x.UpdatedAt)
             .ToListAsync(cancellationToken);
 
@@ -175,27 +265,43 @@ public sealed class PoiService : IPoiService
     public async Task<PoiListItemResponse> UpdateAsync(string poiId, ClaimsPrincipal principal, PoiUpdateRequest request, CancellationToken cancellationToken = default)
     {
         var poi = await RequireEditablePoiAsync(poiId, principal, cancellationToken);
+        var role = principal.FindFirstValue(ClaimTypes.Role);
+        var canManageBillingFields = role == KnownRoles.Admin;
+        var incomingSourceDescription = request.SourceDescription.Trim();
+        var sourceChanged = !string.Equals(poi.SourceDescription, incomingSourceDescription, StringComparison.Ordinal);
+
         poi.Name = request.Name.Trim();
         poi.Address = request.Address.Trim();
+        poi.Tags = BusinessRules.ResolveSubmittedTags(request.Tags, request.Name, request.SourceDescription);
         poi.SourceLanguage = string.IsNullOrWhiteSpace(request.SourceLanguage) ? "vi" : request.SourceLanguage.Trim();
-        poi.SourceDescription = request.SourceDescription.Trim();
-        poi.Description_VI = request.SourceDescription.Trim();
+        poi.SourceDescription = incomingSourceDescription;
+        poi.Description_VI = incomingSourceDescription;
+        if (sourceChanged)
+        {
+            BusinessRules.ClearTargetTranslations(poi);
+        }
+
+        BusinessRules.ApplyProvidedTranslations(poi, request.TranslatedDescriptions);
         poi.MerchantNote = request.MerchantNote.Trim();
         poi.Location = new GeoLocation { Type = "Point", Coordinates = [request.Longitude, request.Latitude] };
-        poi.Radius = request.Radius;
         poi.PriorityLevel = request.PriorityLevel;
-        poi.BoostPriority = request.BoostPriority;
-        poi.BoostExpiresAt = request.BoostPriority > 0
-            ? DateTime.UtcNow.AddMonths(1)
-            : null;
+        if (canManageBillingFields)
+        {
+            poi.BoostPriority = request.BoostPriority;
+            poi.BoostExpiresAt = request.BoostPriority > 0
+                ? DateTime.UtcNow.AddMonths(1)
+                : null;
+            poi.SubscriptionPackage = request.SubscriptionPackage;
+        }
+        poi.Radius = BusinessRules.GetEffectiveRadius(poi);
+
         poi.ImageUrl = request.ImageUrl;
-        poi.SubscriptionPackage = request.SubscriptionPackage;
         poi.UpdatedAt = DateTime.UtcNow;
         poi.ContentVersion += 1;
         poi.TranslationStatus = TranslationStatuses.Pending;
         poi.ModerationStatus = await _moderationService.EvaluateAsync(poi, cancellationToken);
 
-        if (principal.FindFirstValue(ClaimTypes.Role) == KnownRoles.Merchant)
+        if (role == KnownRoles.Merchant)
         {
             poi.Status = PoiWorkflowStatuses.Draft;
             poi.ApprovalStatus = PoiWorkflowStatuses.Draft;
@@ -206,7 +312,10 @@ public sealed class PoiService : IPoiService
 
         await _collections.Pois.ReplaceOneAsync(x => x.Id == poi.Id, poi, cancellationToken: cancellationToken);
         await _translationService.RefreshAsync(poi, cancellationToken);
-        await UpsertBillingRecordAsync(poi, cancellationToken);
+        if (canManageBillingFields)
+        {
+            await UpsertBillingRecordAsync(poi, cancellationToken);
+        }
 
         await _auditService.WriteAsync(
             "POI_UPDATED",
@@ -249,20 +358,30 @@ public sealed class PoiService : IPoiService
 
         var poi = await _collections.Pois.Find(x => x.Id == poiId).FirstOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy POI.");
+        var now = DateTime.UtcNow;
+        var reviewerId = principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty;
 
         BusinessRules.ApplyReview(
             poi,
             request.Approve,
-            principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
+            reviewerId,
             request.RejectionReason.Trim(),
-            DateTime.UtcNow);
+            now);
 
         if (request.Approve && poi.ModerationStatus == ModerationStatuses.PendingManual)
         {
             poi.ModerationStatus = ModerationStatuses.Approved;
         }
+        poi.Radius = BusinessRules.GetEffectiveRadius(poi, now);
 
         await _collections.Pois.ReplaceOneAsync(x => x.Id == poi.Id, poi, cancellationToken: cancellationToken);
+        if (request.Approve)
+        {
+            await _collections.PoiReviewSnapshots.InsertOneAsync(
+                BusinessRules.CreateApprovedSnapshot(poi, reviewerId, now),
+                cancellationToken: cancellationToken);
+        }
+
         await CreateOwnerAlertAsync(
             poi.OwnerId,
             poi.Id,
@@ -291,6 +410,61 @@ public sealed class PoiService : IPoiService
         poi.UpdatedAt = DateTime.UtcNow;
         await _collections.Pois.ReplaceOneAsync(x => x.Id == poi.Id, poi, cancellationToken: cancellationToken);
         return imageUrl;
+    }
+
+    public async Task ArchiveAsync(string poiId, ClaimsPrincipal principal, CancellationToken cancellationToken = default)
+    {
+        var poi = await RequireEditablePoiAsync(poiId, principal, cancellationToken);
+        poi.Status = PoiWorkflowStatuses.Archived;
+        poi.ApprovalStatus = PoiWorkflowStatuses.Archived;
+        poi.SubscriptionPackage = SubscriptionPackages.Basic;
+        poi.IsPaid = false;
+        poi.SubscriptionExpiry = null;
+        poi.BoostPriority = 0;
+        poi.BoostExpiresAt = null;
+        poi.Radius = BusinessRules.GetEffectiveRadius(poi);
+        poi.UpdatedAt = DateTime.UtcNow;
+
+        await _collections.Pois.ReplaceOneAsync(x => x.Id == poi.Id, poi, cancellationToken: cancellationToken);
+
+        await _auditService.WriteAsync(
+            "POI_ARCHIVED",
+            "POI",
+            poi.Id,
+            new { message = "POI archived / service stopped" },
+            principal.FindFirstValue(ClaimTypes.NameIdentifier),
+            principal.FindFirstValue(ClaimTypes.Role),
+            cancellationToken);
+    }
+
+    public async Task<RepairResponse> RepairMissingTagsAsync(CancellationToken cancellationToken = default)
+    {
+        var pois = await _collections.Pois.Find(FilterDefinition<POI>.Empty).ToListAsync(cancellationToken);
+        var updated = 0;
+        foreach (var poi in pois)
+        {
+            var normalized = BusinessRules.NormalizeTags(poi.Tags);
+            if (normalized.Count > 0)
+            {
+                continue;
+            }
+
+            var inferred = BusinessRules.InferTags(poi.Name, poi.SourceDescription).ToList();
+            await _collections.Pois.UpdateOneAsync(
+                x => x.Id == poi.Id,
+                Builders<POI>.Update
+                    .Set(x => x.Tags, inferred)
+                    .Set(x => x.UpdatedAt, DateTime.UtcNow),
+                cancellationToken: cancellationToken);
+            updated++;
+        }
+
+        return new RepairResponse
+        {
+            Matched = pois.Count,
+            Updated = updated,
+            Message = "POI tags repaired from name/source content.",
+        };
     }
 
     private async Task<POI> RequireEditablePoiAsync(string poiId, ClaimsPrincipal principal, CancellationToken cancellationToken)
@@ -385,12 +559,13 @@ public sealed class PoiService : IPoiService
             OwnerId = poi.OwnerId,
             Name = poi.Name,
             Address = poi.Address,
+            Tags = ResolvePoiTags(poi),
             Status = poi.Status,
             ModerationStatus = poi.ModerationStatus,
             TranslationStatus = poi.TranslationStatus,
             SubscriptionPackage = poi.SubscriptionPackage,
             ImageUrl = poi.ImageUrl,
-            Radius = poi.Radius,
+            Radius = BusinessRules.GetEffectiveRadius(poi),
             PriorityLevel = poi.PriorityLevel,
             BoostPriority = poi.BoostPriority,
             CountedQrScanCount = poi.CountedQrScanCount,
@@ -399,7 +574,21 @@ public sealed class PoiService : IPoiService
             UpdatedAt = poi.UpdatedAt,
             Latitude = poi.Location.Coordinates.ElementAtOrDefault(1),
             Longitude = poi.Location.Coordinates.ElementAtOrDefault(0),
-            SourceDescription = poi.SourceDescription,
+            SourceDescription = ResolveSourceDescription(poi),
+            TranslatedDescriptions = BusinessRules.GetTargetTranslations(poi),
         };
+    }
+
+    private static IReadOnlyList<string> ResolvePoiTags(POI poi)
+    {
+        var normalized = BusinessRules.NormalizeTags(poi.Tags);
+        return normalized.Count > 0 ? normalized : BusinessRules.InferTags(poi.Name, ResolveSourceDescription(poi));
+    }
+
+    private static string ResolveSourceDescription(POI poi)
+    {
+        return string.IsNullOrWhiteSpace(poi.SourceDescription)
+            ? poi.Description_VI
+            : poi.SourceDescription;
     }
 }

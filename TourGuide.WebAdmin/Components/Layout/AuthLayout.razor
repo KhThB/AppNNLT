@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+@using TourGuide.WebAdmin.Helpers
+
+<MudThemeProvider Theme="CustomTheme.MerchantTheme" @rendermode="InteractiveServer" />
+<MudDialogProvider @rendermode="InteractiveServer" />
+<MudSnackbarProvider @rendermode="InteractiveServer" />
+<MudPopoverProvider @rendermode="InteractiveServer" />
+
+<main class="auth-shell">
+    <div class="auth-brand">
+        <span class="portal-logo portal-logo-admin">A</span>
+        <span>TourGuide Admin</span>
+    </div>
+    @Body
+</main>

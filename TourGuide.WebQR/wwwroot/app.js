@@ -46,6 +46,11 @@ window.tourGuideQr = {
             return;
         }
 
+        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
+            onError();
+            return;
+        }
+
         const utterance = new SpeechSynthesisUtterance(content.description || "No content");
         utterance.lang = {
             VI: "vi-VN",
@@ -98,20 +103,48 @@ window.tourGuideQrPage = {
         let currentLang = languages.includes("VI") ? "VI" : languages[0];
 
         const langSelector = document.getElementById("lang-selector");
+        const contentStatus = document.getElementById("content-status");
         const descriptionEl = document.getElementById("desc-text");
         const playBtn = document.getElementById("play-audio-btn");
         const stopBtn = document.getElementById("stop-audio-btn");
+        const playStatus = document.getElementById("play-status");
         const banner = document.getElementById("qr-banner");
         const directionsBtn = document.getElementById("directions-btn");
+
+        const showPlayStatus = (message, isError) => {
+            if (!playStatus) {
+                return;
+            }
+
+            if (!message) {
+                playStatus.style.display = "none";
+                playStatus.innerText = "";
+                playStatus.classList.remove("error");
+                return;
+            }
+
+            playStatus.style.display = "block";
+            playStatus.innerText = message;
+            playStatus.classList.toggle("error", !!isError);
+        };
 
         const renderDescription = () => {
             const content = payload.contents[currentLang];
             if (!content) {
                 descriptionEl.innerText = "Đang cập nhật nội dung...";
+                contentStatus.style.display = "block";
+                contentStatus.innerText = "Nội dung ngôn ngữ này chưa sẵn sàng.";
                 return;
             }
 
             descriptionEl.innerText = content.description || "Đang cập nhật nội dung...";
+            if (content.status && content.status !== "Ready") {
+                contentStatus.style.display = "block";
+                contentStatus.innerText = "Bản dịch đang chờ xử lý thủ công. Nội dung hiện tại có thể là bản nguồn.";
+            } else {
+                contentStatus.style.display = "none";
+                contentStatus.innerText = "";
+            }
         };
 
         languages.forEach(lang => {
@@ -123,6 +156,7 @@ window.tourGuideQrPage = {
                 langSelector.querySelectorAll(".lang-btn").forEach(x => x.classList.remove("active"));
                 btn.classList.add("active");
                 window.tourGuideQr.stopPlayback(state);
+                showPlayStatus("");
                 playBtn.style.display = "inline-flex";
                 stopBtn.style.display = "none";
                 renderDescription();
@@ -147,6 +181,10 @@ window.tourGuideQrPage = {
             banner.style.display = "block";
             banner.innerText = scanResponse.message;
         }
+        if (!scanResponse) {
+            banner.style.display = "block";
+            banner.innerText = "Không ghi nhận được lượt quét lúc này, bạn vẫn có thể nghe thuyết minh.";
+        }
 
         const finishLog = async (status, errorCode) => {
             if (!state.logId) {
@@ -170,6 +208,7 @@ window.tourGuideQrPage = {
         };
 
         playBtn.onclick = async () => {
+            showPlayStatus("");
             const playResponse = await fetch(`${config.apiBase}api/narration/play`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -177,12 +216,18 @@ window.tourGuideQrPage = {
                     poiId: config.poiId,
                     visitorId,
                     sessionId,
+                    language: currentLang,
                     triggerSource: "WebQR"
                 })
             }).then(r => r.json()).catch(() => null);
 
             if (!playResponse) {
+                showPlayStatus("Không ghi nhận được lượt nghe. Vui lòng thử lại.", true);
                 return;
+            }
+
+            if (playResponse.rateLimited) {
+                showPlayStatus("Bạn đang nghe lại trong khung giới hạn, hệ thống không cộng thêm lượt nghe.", false);
             }
 
             state.logId = playResponse.logId;
@@ -197,11 +242,13 @@ window.tourGuideQrPage = {
                 async () => {
                     playBtn.style.display = "inline-flex";
                     stopBtn.style.display = "none";
+                    showPlayStatus("");
                     await finishLog("Completed");
                 },
                 async () => {
                     playBtn.style.display = "inline-flex";
                     stopBtn.style.display = "none";
+                    showPlayStatus("Không thể phát audio hoặc giọng đọc trên trình duyệt này.", true);
                     await finishLog("Error", "PLAYBACK_FAILED");
                 });
         };
@@ -210,6 +257,7 @@ window.tourGuideQrPage = {
             window.tourGuideQr.stopPlayback(state);
             playBtn.style.display = "inline-flex";
             stopBtn.style.display = "none";
+            showPlayStatus("Đã dừng phát thuyết minh.", false);
             await finishLog("Stopped");
         };
 

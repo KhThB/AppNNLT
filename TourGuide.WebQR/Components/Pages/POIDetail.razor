@@ -31,9 +31,11 @@ else
         <div class="address-text">@_poi.Address</div>
 
         <div class="lang-selector" id="lang-selector"></div>
+        <div class="content-status" id="content-status" style="display:none;"></div>
         <div class="desc-text" id="desc-text"></div>
 
         <div class="audio-container">
+            <div class="play-status" id="play-status" style="display:none;"></div>
             <button id="play-audio-btn" class="hero-action">Nghe thuyết minh</button>
             <button id="stop-audio-btn" class="hero-secondary" style="display:none;">Dừng</button>
         </div>
@@ -86,5 +88,6 @@ else
         public string Description { get; set; } = string.Empty;
         public string AudioUrl { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public string ErrorMessage { get; set; } = string.Empty;
     }
 }

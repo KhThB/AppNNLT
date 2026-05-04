@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:mapsui="clr-namespace:Mapsui.UI.Maui;assembly=Mapsui.UI.Maui"
+             xmlns:viewmodel="clr-namespace:Mobile.ViewModels"
+             x:Class="Mobile.Views.MapPage"
+             x:DataType="viewmodel:MapPageViewModel"
+             Title="Bản đồ"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             xmlns:controls="clr-namespace:Mobile.Controls">
+    <Grid>
+        <Grid Margin="0,0,0,90">
+            <Grid>
+                <!-- Full screen map -->
+                <mapsui:MapView x:Name="mapView" 
+                                HorizontalOptions="Fill" 
+                                VerticalOptions="Fill" />
+
+                <!-- Layer chứa các custom MAUI View (ghim) -->
+                <Grid x:Name="markersLayer" HorizontalOptions="Fill" VerticalOptions="Fill" InputTransparent="True" CascadeInputTransparent="False" />
+
+                <!-- Top Overlay: Search Bar & Pills -->
+                <VerticalStackLayout Margin="15,50,15,0" Spacing="15" VerticalOptions="Start">
+                    <!-- Search Bar -->
+                    <Border StrokeShape="RoundRectangle 25" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" HeightRequest="50">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,4" Radius="10" Opacity="0.1" />
+                        </Border.Shadow>
+                        <Grid ColumnDefinitions="Auto, *">
+                            <Label Grid.Column="0" Text="🔍" FontSize="16" VerticalOptions="Center" Margin="15,0,5,0" />
+                            <Entry Grid.Column="1" Placeholder="Tìm kiếm quán ăn..." BackgroundColor="Transparent" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" PlaceholderColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" VerticalOptions="Center" />
+                        </Grid>
+                    </Border>
+
+                    <!-- Filter Pills -->
+                    <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" Margin="-15,0,-15,0">
+                        <HorizontalStackLayout Spacing="10" Padding="15,0,15,0">
+                            <Button Text="Tất cả" BackgroundColor="{StaticResource Primary}" TextColor="White" CornerRadius="18" HeightRequest="36" Padding="15,0" FontAttributes="Bold" FontSize="12" />
+                            <Button Text="Ốc Đêm" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" CornerRadius="18" HeightRequest="36" Padding="15,0" FontSize="12">
+                                <Button.Shadow>
+                                    <Shadow Brush="Black" Offset="0,2" Radius="5" Opacity="0.1" />
+                                </Button.Shadow>
+                            </Button>
+                            <Button Text="Ăn Vặt" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" CornerRadius="18" HeightRequest="36" Padding="15,0" FontSize="12">
+                                <Button.Shadow>
+                                    <Shadow Brush="Black" Offset="0,2" Radius="5" Opacity="0.1" />
+                                </Button.Shadow>
+                            </Button>
+                            <Button Text="Trà Sữa" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" CornerRadius="18" HeightRequest="36" Padding="15,0" FontSize="12">
+                                <Button.Shadow>
+                                    <Shadow Brush="Black" Offset="0,2" Radius="5" Opacity="0.1" />
+                                </Button.Shadow>
+                            </Button>
+                        </HorizontalStackLayout>
+                    </ScrollView>
+                </VerticalStackLayout>
+
+                <!-- Right Side Map Controls -->
+                <VerticalStackLayout VerticalOptions="End" HorizontalOptions="End" Margin="0,0,20,30" Spacing="12">
+                    <!-- Zoom In -->
+                    <Border StrokeShape="RoundRectangle 25" StrokeThickness="1" Stroke="#444444" BackgroundColor="#CC000000" HeightRequest="50" WidthRequest="50">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,2" Radius="5" Opacity="0.3" />
+                        </Border.Shadow>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnZoomInClicked" />
+                        </Border.GestureRecognizers>
+                        <Label Text="+" TextColor="White" FontSize="24" HorizontalOptions="Center" VerticalOptions="Center" Margin="0,0,0,2" />
+                    </Border>
+
+                    <!-- Zoom Out -->
+                    <Border StrokeShape="RoundRectangle 25" StrokeThickness="1" Stroke="#444444" BackgroundColor="#CC000000" HeightRequest="50" WidthRequest="50">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,2" Radius="5" Opacity="0.3" />
+                        </Border.Shadow>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnZoomOutClicked" />
+                        </Border.GestureRecognizers>
+                        <Label Text="−" TextColor="White" FontSize="24" HorizontalOptions="Center" VerticalOptions="Center" Margin="0,0,0,2" />
+                    </Border>
+
+                    <!-- Center Location -->
+                    <Border StrokeShape="RoundRectangle 25" StrokeThickness="1" Stroke="#444444" BackgroundColor="#CC000000" HeightRequest="50" WidthRequest="50">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,2" Radius="5" Opacity="0.3" />
+                        </Border.Shadow>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnCenterMapClicked" />
+                        </Border.GestureRecognizers>
+                        <Label Text="🎯" TextColor="White" FontSize="20" HorizontalOptions="Center" VerticalOptions="Center" />
+                    </Border>
+                </VerticalStackLayout>
+            </Grid>
+        </Grid>
+        <controls:BottomTabBar />
+    </Grid>
+</ContentPage>

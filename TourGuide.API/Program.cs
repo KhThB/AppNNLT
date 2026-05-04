@@ -20,6 +20,7 @@ builder.Services.Configure<AdminBootstrapOptions>(builder.Configuration.GetSecti
 builder.Services.Configure<TranslationProviderOptions>(builder.Configuration.GetSection("Translation"));
 builder.Services.Configure<ModerationProviderOptions>(builder.Configuration.GetSection("Moderation"));
 builder.Services.Configure<CloudinaryOptions>(builder.Configuration.GetSection("Cloudinary"));
+builder.Services.Configure<PaymentOptions>(builder.Configuration.GetSection("Payment"));
 
 var mongoSettings = builder.Configuration.GetSection("MongoDbSettings").Get<MongoDbSettings>() ?? new MongoDbSettings();
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new JwtSettings();
@@ -35,11 +36,17 @@ builder.Services.AddSingleton<PresenceTracker>();
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpClient<GoogleCloudTranslationProvider>();
+builder.Services.AddHttpClient<MyMemoryTranslationProvider>();
+builder.Services.AddScoped<ITranslationProvider, CompositeTranslationProvider>();
 builder.Services.AddScoped<ITranslationService, TranslationService>();
 builder.Services.AddScoped<IModerationService, ModerationService>();
 builder.Services.AddScoped<IPoiService, PoiService>();
 builder.Services.AddScoped<IAnalyticsService, AnalyticsService>();
 builder.Services.AddScoped<IImageStorageService, CloudinaryImageStorageService>();
+builder.Services.AddScoped<IBillingService, BillingService>();
+builder.Services.AddHttpClient<PayOsPaymentGateway>();
+builder.Services.AddScoped<IPaymentGateway>(sp => sp.GetRequiredService<PayOsPaymentGateway>());
 
 builder.Services.AddCors(options =>
 {
@@ -152,7 +159,10 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("Portal");
 app.UseStaticFiles();
 app.UseAuthentication();

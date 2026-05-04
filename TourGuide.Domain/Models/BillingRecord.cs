@@ -3,6 +3,7 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace TourGuide.Domain.Models;
 
+[BsonIgnoreExtraElements]
 public class BillingRecord
 {
     [BsonId]
@@ -20,6 +21,14 @@ public class BillingRecord
     public decimal Amount { get; set; }
     public string Currency { get; set; } = "VND";
     public string Status { get; set; } = "Pending";
+    public string Provider { get; set; } = "Manual";
+    public long? PaymentOrderCode { get; set; }
+    public string ProviderPaymentId { get; set; } = string.Empty;
+    public string ProviderTransactionId { get; set; } = string.Empty;
+    public string CheckoutUrl { get; set; } = string.Empty;
+    public string QrCode { get; set; } = string.Empty;
+    public DateTime? PaidAt { get; set; }
+    public string FailureReason { get; set; } = string.Empty;
     public bool AutoRenew { get; set; }
     public DateTime EffectiveFrom { get; set; } = DateTime.UtcNow;
     public DateTime? EffectiveTo { get; set; }

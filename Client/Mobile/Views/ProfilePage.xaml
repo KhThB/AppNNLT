@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodel="clr-namespace:Mobile.ViewModels"
+             xmlns:model="clr-namespace:Mobile.Models"
+             x:Class="Mobile.Views.ProfilePage"
+             x:DataType="viewmodel:ProfileViewModel"
+             Title="Cá nhân"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             xmlns:controls="clr-namespace:Mobile.Controls"
+             BackgroundColor="{AppThemeBinding Light=#F8F9FA, Dark=#121212}">
+
+    <Grid>
+        <Grid Margin="0,0,0,90">
+            <ScrollView>
+                <VerticalStackLayout Spacing="15" Padding="20">
+                    
+                    <!-- 1. Header -->
+                    <Grid ColumnDefinitions="Auto, *, Auto" VerticalOptions="Center" ColumnSpacing="15" Margin="0,10,0,20">
+                        <!-- Cột trái: Avatar -->
+                        <Frame Grid.Column="0" CornerRadius="30" HeightRequest="60" WidthRequest="60" Padding="0" IsClippedToBounds="True" BackgroundColor="{StaticResource Primary}" HasShadow="False">
+                            <Image Source="{Binding AvatarUrl}" Aspect="AspectFill" />
+                        </Frame>
+                        
+                        <!-- Cột giữa: Lời chào -->
+                        <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
+                            <Label Text="Xin chào," FontSize="14" TextColor="#A0A0A0" />
+                            <Label Text="{Binding Nickname}" FontSize="20" FontAttributes="Bold" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" />
+                        </VerticalStackLayout>
+                        
+                        <!-- Cột phải: Darkmode Switch -->
+                        <VerticalStackLayout Grid.Column="2" VerticalOptions="Center" HorizontalOptions="End" Spacing="2">
+                            <Label Text="Giao diện tối" FontSize="12" TextColor="#A0A0A0" HorizontalOptions="End" />
+                            <Switch IsToggled="{Binding IsDarkMode}" OnColor="#512BD4" HorizontalOptions="End" />
+                        </VerticalStackLayout>
+                    </Grid>
+
+                    <!-- 2. Thẻ Cài đặt (Cards) -->
+                    <!-- Thẻ 1: Ngôn ngữ -->
+                    <Frame CornerRadius="15" BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}" HasShadow="False" Padding="20">
+                        <VerticalStackLayout Spacing="15">
+                            <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                                <!-- Icon quả địa cầu xanh theo mô tả prompt -->
+                                <Label Text="🌍" FontSize="20" VerticalOptions="Center" TextColor="#2196F3" />
+                                <Label Text="Ngôn ngữ Thuyết minh" FontAttributes="Bold" FontSize="16" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            
+                            <VerticalStackLayout Spacing="0">
+                                <Picker SelectedItem="{Binding CurrentLanguage}" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" TitleColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" Title="Chọn ngôn ngữ" Margin="0" BackgroundColor="Transparent">
+                                    <Picker.ItemsSource>
+                                        <x:Array Type="{x:Type x:String}">
+                                            <x:String>Tiếng Việt</x:String>
+                                            <x:String>English</x:String>
+                                            <x:String>日本語</x:String>
+                                            <x:String>한국어</x:String>
+                                        </x:Array>
+                                    </Picker.ItemsSource>
+                                </Picker>
+                                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#EEEEEE, Dark=#333333}" Margin="5,0" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <!-- Thẻ 2: Lịch sử đi lại -->
+                    <Frame CornerRadius="15" BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}" HasShadow="False" Padding="20,0">
+                        <VerticalStackLayout>
+                            <Grid ColumnDefinitions="Auto, *, Auto" Padding="0,20">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ToggleDistanceCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Grid.Column="0" Text="🕒" FontSize="20" VerticalOptions="Center" Margin="0,0,10,0" />
+                                <Label Grid.Column="1" Text="Lịch sử quãng đường" FontAttributes="Bold" FontSize="16" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" FontSize="16" TextColor="#A0A0A0" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsDistanceExpanded}" Value="True">
+                                            <Setter Property="Text" Value="▲" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsDistanceExpanded}" Value="False">
+                                            <Setter Property="Text" Value="▼" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Grid>
+                            
+                            <!-- Accordion Content -->
+                            <VerticalStackLayout IsVisible="{Binding IsDistanceExpanded}" Padding="0,0,0,20" Spacing="15">
+                                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#EEEEEE, Dark=#333333}" />
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                        <Label Text="Tour Ăn Vặt Sinh Viên" FontAttributes="Bold" FontSize="14" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" />
+                                        <Label Text="Hôm nay, 14:30" FontSize="12" TextColor="#808080" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="1" Text="Hoàn thành" TextColor="#34C759" FontSize="12" FontAttributes="Bold" VerticalOptions="Center" />
+                                </Grid>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <!-- Thẻ 3: Lịch sử QR -->
+                    <Frame CornerRadius="15" BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}" HasShadow="False" Padding="20,0">
+                        <VerticalStackLayout>
+                            <Grid ColumnDefinitions="Auto, *, Auto" Padding="0,20">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ToggleQrCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Grid.Column="0" Text="📷" FontSize="20" VerticalOptions="Center" Margin="0,0,10,0" />
+                                <Label Grid.Column="1" Text="Lịch sử quét QR" FontAttributes="Bold" FontSize="16" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" FontSize="16" TextColor="#A0A0A0" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsQrExpanded}" Value="True">
+                                            <Setter Property="Text" Value="▲" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsQrExpanded}" Value="False">
+                                            <Setter Property="Text" Value="▼" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Grid>
+
+                            <!-- Accordion Content -->
+                            <VerticalStackLayout IsVisible="{Binding IsQrExpanded}" Padding="0,0,0,20">
+                                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#EEEEEE, Dark=#333333}" Margin="0,0,0,15" />
+                                
+                                <CollectionView ItemsSource="{Binding QrHistories}" SelectionMode="None">
+                                    <CollectionView.EmptyView>
+                                        <Label Text="Bạn chưa quét mã QR nào" FontSize="14" TextColor="#808080" HorizontalOptions="Center" Margin="0,10" />
+                                    </CollectionView.EmptyView>
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate x:DataType="model:QrHistoryModel">
+                                            <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,15">
+                                                <Label Grid.Column="0" Text="{Binding PoiName}" FontAttributes="Bold" FontSize="14" TextColor="{AppThemeBinding Light=#512BD4, Dark=#9370DB}" VerticalOptions="Center" />
+                                                <Label Grid.Column="1" Text="{Binding FormattedScanTime}" FontSize="12" TextColor="#808080" VerticalOptions="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <!-- Thẻ 4: Yêu thích -->
+                    <Frame CornerRadius="15" BackgroundColor="{AppThemeBinding Light=White, Dark=#1E1E1E}" HasShadow="False" Padding="20,0">
+                        <VerticalStackLayout>
+                            <Grid ColumnDefinitions="Auto, *, Auto" Padding="0,20">
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding ToggleFavoritesCommand}" />
+                                </Grid.GestureRecognizers>
+                                <Label Grid.Column="0" Text="❤️" FontSize="20" VerticalOptions="Center" Margin="0,0,10,0" />
+                                <Label Grid.Column="1" Text="Quán ăn yêu thích" FontAttributes="Bold" FontSize="16" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" VerticalOptions="Center" />
+                                <Label Grid.Column="2" FontSize="16" TextColor="#A0A0A0" VerticalOptions="Center">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsFavoritesExpanded}" Value="True">
+                                            <Setter Property="Text" Value="▲" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Label" Binding="{Binding IsFavoritesExpanded}" Value="False">
+                                            <Setter Property="Text" Value="▼" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </Grid>
+
+                            <!-- Accordion Content -->
+                            <VerticalStackLayout IsVisible="{Binding IsFavoritesExpanded}" Padding="0,0,0,20">
+                                <BoxView HeightRequest="1" Color="{AppThemeBinding Light=#EEEEEE, Dark=#333333}" Margin="0,0,0,15" />
+                                
+                                <CollectionView ItemsSource="{Binding FavoriteList}" SelectionMode="None">
+                                    <CollectionView.EmptyView>
+                                        <Label Text="Danh sách yêu thích trống" FontSize="14" TextColor="#808080" HorizontalOptions="Center" Margin="0,10" />
+                                    </CollectionView.EmptyView>
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate x:DataType="model:PoiModel">
+                                            <Grid ColumnDefinitions="Auto, *, Auto" Margin="0,0,0,15" ColumnSpacing="15">
+                                                <!-- Ảnh đại diện dạng tròn -->
+                                                <Frame Grid.Column="0" CornerRadius="20" HeightRequest="40" WidthRequest="40" Padding="0" IsClippedToBounds="True" HasShadow="False" BackgroundColor="#E0E0E0" VerticalOptions="Center">
+                                                    <Image Source="{Binding ImageUrl}" Aspect="AspectFill" />
+                                                </Frame>
+                                                
+                                                <!-- Tên và Địa chỉ -->
+                                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                                    <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="14" TextColor="{AppThemeBinding Light=#333333, Dark=#E0E0E0}" />
+                                                    <Label Text="{Binding Address}" FontSize="12" TextColor="#808080" LineBreakMode="TailTruncation" MaxLines="1" />
+                                                </VerticalStackLayout>
+                                                
+                                                <!-- Nút xóa (Thùng rác) -->
+                                                <Label Grid.Column="2" Text="🗑" FontSize="20" TextColor="#D32F2F" VerticalOptions="Center">
+                                                    <Label.GestureRecognizers>
+                                                        <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type viewmodel:ProfileViewModel}}, Path=RemoveFavoriteCommand}" CommandParameter="{Binding Id}" />
+                                                    </Label.GestureRecognizers>
+                                                </Label>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </Frame>
+
+                    <!-- 3. Nút Đăng xuất (Dưới cùng) -->
+                    <Button Text="Đăng xuất" 
+                            BackgroundColor="#FFF0F0" 
+                            TextColor="#D32F2F" 
+                            CornerRadius="15" 
+                            HeightRequest="50" 
+                            FontAttributes="Bold" 
+                            Margin="0,10,0,20"
+                            Command="{Binding LogoutCommand}">
+                    </Button>
+                    
+                </VerticalStackLayout>
+            </ScrollView>
+        </Grid>
+        <controls:BottomTabBar />
+    </Grid>
+</ContentPage>

@@ -1,15 +1,15 @@
 html, body {
     font-family: 'Inter', Helvetica, Arial, sans-serif;
-    background-color: #F8FAFC;
+    background-color: #fff7ed;
 }
 
 /* Premium Effects */
 .glass-panel {
-    background: rgba(255, 255, 255, 0.7) !important;
+    background: rgba(255, 255, 255, 0.88) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+    box-shadow: 0 10px 28px rgba(124, 45, 18, 0.08);
 }
 
 .hover-lift {
@@ -22,7 +22,7 @@ html, body {
 }
 
 .gradient-text {
-    background: linear-gradient(90deg, #1E3A8A, #D97706);
+    background: linear-gradient(90deg, #c2410c, #f97316);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
@@ -33,8 +33,8 @@ a, .btn-link {
 
 .btn-primary {
     color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+    background-color: #ea580c;
+    border-color: #c2410c;
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
@@ -86,6 +86,62 @@ h1:focus {
 
 .nav-button:hover {
     color: #fff;
+}
+
+.portal-logo {
+    align-items: center;
+    border-radius: 7px;
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 800;
+    height: 28px;
+    justify-content: center;
+    letter-spacing: 0;
+    line-height: 1;
+    min-width: 28px;
+}
+
+.portal-logo-admin {
+    background: #fb923c;
+    color: #111827;
+}
+
+.portal-logo-merchant {
+    background: #fed7aa;
+    color: #7c2d12;
+}
+
+.portal-role-chip {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 8px;
+    color: #f8fafc;
+    display: inline-flex;
+    font-size: 0.82rem;
+    font-weight: 650;
+    gap: 8px;
+    padding: 7px 8px;
+}
+
+.portal-role-chip-light {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.merchant-nav-actions {
+    align-items: center;
+    display: flex;
+    gap: 8px;
+}
+
+@media (max-width: 900px) {
+    .merchant-nav-actions {
+        gap: 2px;
+    }
+
+    .portal-role-chip {
+        display: none;
+    }
 }
 
 .heatmap-empty-state {

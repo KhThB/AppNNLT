@@ -21,4 +21,5 @@ public sealed class MongoCollections
     public IMongoCollection<TranslationCache> TranslationCaches => Database.GetCollection<TranslationCache>("TranslationCaches");
     public IMongoCollection<BillingRecord> BillingRecords => Database.GetCollection<BillingRecord>("BillingRecords");
     public IMongoCollection<OwnerAlert> OwnerAlerts => Database.GetCollection<OwnerAlert>("OwnerAlerts");
+    public IMongoCollection<PoiReviewSnapshot> PoiReviewSnapshots => Database.GetCollection<PoiReviewSnapshot>("PoiReviewSnapshots");
 }

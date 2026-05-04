@@ -3,6 +3,7 @@
 @using System.Net.Http.Headers
 @using MudBlazor
 @using TourGuide.WebAdmin.Helpers
+@using TourGuide.WebAdmin.Models
 @inject HttpClient Http
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
@@ -13,15 +14,38 @@
 <MudPopoverProvider />
 <MudLayout>
     <MudAppBar Color="Color.Primary" Fixed="true" Elevation="2">
-        <MudIcon Icon="@Icons.Material.Filled.RestaurantMenu" Class="mr-3" Size="Size.Large" />
-        <MudText Typo="Typo.h5" Style="font-weight: 600;">VinhKhanh FoodTour <span style="font-weight: 300; opacity: 0.8">| Cổng Chủ Quán</span></MudText>
+        <span class="portal-logo portal-logo-merchant mr-3">M</span>
+        <MudText Typo="Typo.h5" Style="font-weight: 700;">VinhKhanh FoodTour <span style="font-weight: 300; opacity: 0.82">| Merchant</span></MudText>
         <MudSpacer />
-        @if (_hasToken)
+        @if (!_ready)
         {
-            <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/dashboard" StartIcon="@Icons.Material.Filled.Dashboard">Dashboard</MudButton>
-            <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/register" StartIcon="@Icons.Material.Filled.AddLocationAlt">Tạo POI</MudButton>
-            <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/pois" StartIcon="@Icons.Material.Filled.Storefront">Quản lý POI</MudButton>
-            <MudButton Color="Color.Inherit" Variant="Variant.Text" OnClick="LogoutAsync" StartIcon="@Icons.Material.Filled.Logout">Đăng xuất</MudButton>
+            <span class="portal-role-chip portal-role-chip-light">
+                <span class="portal-logo portal-logo-merchant">M</span>
+                <span>Đang kiểm tra</span>
+            </span>
+        }
+        else if (_hasToken)
+        {
+            <div class="merchant-nav-actions">
+                <span class="portal-role-chip portal-role-chip-light">
+                    <span class="portal-logo portal-logo-merchant">M</span>
+                    <span>Merchant</span>
+                </span>
+                <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/dashboard" StartIcon="@Icons.Material.Filled.Dashboard">Dashboard</MudButton>
+                <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/register" StartIcon="@Icons.Material.Filled.AddLocationAlt">Tạo POI</MudButton>
+                <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/pois" StartIcon="@Icons.Material.Filled.Storefront">Quản lý POI</MudButton>
+                <MudButton Color="Color.Inherit" Variant="Variant.Text" OnClick="LogoutAsync" StartIcon="@Icons.Material.Filled.Logout">Đăng xuất</MudButton>
+            </div>
+        }
+        else
+        {
+            <div class="merchant-nav-actions">
+                <span class="portal-role-chip portal-role-chip-light">
+                    <span class="portal-logo portal-logo-merchant">M</span>
+                    <span>Cổng Merchant</span>
+                </span>
+                <MudButton Color="Color.Inherit" Variant="Variant.Text" Href="/merchant/login" StartIcon="@Icons.Material.Filled.Login">Đăng nhập</MudButton>
+            </div>
         }
     </MudAppBar>
 
@@ -33,6 +57,7 @@
 </MudLayout>
 
 @code {
+    private bool _ready;
     private bool _hasToken;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -42,11 +67,41 @@
             return;
         }
 
-        var token = await LocalStorage.GetItemAsync<string>("authToken");
-        var role = await LocalStorage.GetItemAsync<string>("userRole");
-        _hasToken = !string.IsNullOrWhiteSpace(token) &&
-                    string.Equals(role, "Merchant", StringComparison.OrdinalIgnoreCase);
+        await RefreshAuthStateAsync();
+        _ready = true;
         StateHasChanged();
+    }
+
+    private async Task RefreshAuthStateAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            _hasToken = false;
+            return;
+        }
+
+        try
+        {
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var me = await Http.GetFromJsonAsync<SessionUser>("api/auth/me");
+            _hasToken = string.Equals(me?.Role, "Merchant", StringComparison.OrdinalIgnoreCase);
+
+            if (!_hasToken)
+            {
+                await ClearLocalSessionAsync();
+                return;
+            }
+
+            await LocalStorage.SetItemAsync("userId", me!.Id);
+            await LocalStorage.SetItemAsync("userRole", me.Role);
+            await LocalStorage.SetItemAsync("userName", me.FullName);
+        }
+        catch
+        {
+            _hasToken = false;
+            await ClearLocalSessionAsync();
+        }
     }
 
     private async Task LogoutAsync()
@@ -64,11 +119,16 @@
             }
         }
 
+        await ClearLocalSessionAsync();
+        _hasToken = false;
+        Navigation.NavigateTo("/merchant/login", true);
+    }
+
+    private async Task ClearLocalSessionAsync()
+    {
         await LocalStorage.RemoveItemAsync("authToken");
         await LocalStorage.RemoveItemAsync("userId");
         await LocalStorage.RemoveItemAsync("userRole");
         await LocalStorage.RemoveItemAsync("userName");
-        _hasToken = false;
-        Navigation.NavigateTo("/merchant/login", true);
     }
 }

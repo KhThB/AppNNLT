@@ -1,58 +1,62 @@
 using MudBlazor;
 
-namespace TourGuide.WebAdmin.Helpers
+namespace TourGuide.WebAdmin.Helpers;
+
+public static class CustomTheme
 {
-    public static class CustomTheme
+    public static MudTheme MerchantTheme = new()
     {
-        public static MudTheme MerchantTheme = new MudTheme()
+        PaletteLight = new PaletteLight
         {
-            PaletteLight = new PaletteLight()
+            Primary = "#ea580c",
+            Secondary = "#f97316",
+            Tertiary = "#fb923c",
+            AppbarBackground = "#c2410c",
+            AppbarText = "#fff7ed",
+            Background = "#fff7ed",
+            DrawerBackground = "#9a3412",
+            Surface = "#ffffff",
+            TextPrimary = "#1f2937",
+            TextSecondary = "#6b7280",
+            ActionDefault = "#ea580c",
+            Info = "#0284c7",
+            Success = "#16a34a",
+            Warning = "#f59e0b",
+            Error = "#dc2626",
+        },
+        Typography = new Typography
+        {
+            Default = new DefaultTypography
             {
-                Primary = "#1E3A8A", // Deep Dark Blue (Tailwind blue-900)
-                Secondary = "#D97706", // Amber/Gold for contrast
-                AppbarBackground = "#0F172A", // Slate 900
-                AppbarText = "#FFFFFF",
-                Background = "#F8FAFC", // Slate 50
-                DrawerBackground = "#FFFFFF",
-                Surface = "#FFFFFF",
-                TextPrimary = "#1E293B", // Slate 800
-                TextSecondary = "#64748B", // Slate 500
-                ActionDefault = "#1E3A8A",
+                FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
+                FontSize = "1rem",
+                FontWeight = "400",
             },
-            Typography = new Typography()
+            H4 = new H4Typography
             {
-                Default = new DefaultTypography()
-                {
-                    FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
-                    FontSize = "1rem",
-                    FontWeight = "400", // Đã thêm ngoặc kép thành chuỗi (string)
-                },
-                H4 = new H4Typography()
-                {
-                    FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
-                    FontWeight = "700", // Đã thêm ngoặc kép
-                },
-                H5 = new H5Typography()
-                {
-                    FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
-                    FontWeight = "600", // Đã thêm ngoặc kép
-                },
-                H6 = new H6Typography()
-                {
-                    FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
-                    FontWeight = "600", // Đã thêm ngoặc kép
-                },
-                Subtitle1 = new Subtitle1Typography()
-                {
-                    FontWeight = "500", // Đã thêm ngoặc kép
-                }
+                FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
+                FontWeight = "750",
             },
-            LayoutProperties = new LayoutProperties()
+            H5 = new H5Typography
             {
-                DefaultBorderRadius = "12px", // Bo góc mềm mại, hiện đại
-                DrawerWidthLeft = "260px",
-                DrawerWidthRight = "300px"
-            }
-        };
-    }
+                FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
+                FontWeight = "700",
+            },
+            H6 = new H6Typography
+            {
+                FontFamily = new[] { "Inter", "Helvetica", "Arial", "sans-serif" },
+                FontWeight = "650",
+            },
+            Subtitle1 = new Subtitle1Typography
+            {
+                FontWeight = "550",
+            },
+        },
+        LayoutProperties = new LayoutProperties
+        {
+            DefaultBorderRadius = "10px",
+            DrawerWidthLeft = "260px",
+            DrawerWidthRight = "300px",
+        },
+    };
 }

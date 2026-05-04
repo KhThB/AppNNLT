@@ -5,6 +5,7 @@
   <Folder Name="/Client/">
     <Project Path="TourGuide.WebAdmin/TourGuide.WebAdmin.csproj" />
     <Project Path="TourGuide.WebQR/TourGuide.WebQR.csproj" Id="1855a59f-02b1-4bf9-8f90-947487716955" />
+    <Project Path="Client/Mobile/Mobile.csproj" />
   </Folder>
   <Folder Name="/Shared/">
     <Project Path="TourGuide.Domain/TourGuide.Domain.csproj" />

@@ -12,6 +12,7 @@ public class NarrationLog
     public string UserId { get; set; } = string.Empty;
     public string VisitorId { get; set; } = string.Empty;
     public string SessionId { get; set; } = string.Empty;
+    public string Language { get; set; } = "VI";
 
     [BsonRepresentation(BsonType.ObjectId)]
     public string PoiId { get; set; } = string.Empty;

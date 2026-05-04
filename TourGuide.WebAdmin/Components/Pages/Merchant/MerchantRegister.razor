@@ -1,32 +1,78 @@
 @page "/merchant/register"
 @layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
 @rendermode InteractiveServer
+@implements IAsyncDisposable
+@using Microsoft.JSInterop
 @using TourGuide.WebAdmin.Components.Shared
+@using TourGuide.WebAdmin.Models
 @inject HttpClient Http
 @inject IJSRuntime JS
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
-<PortalGuard RequiredRole="Merchant" RedirectTo="/merchant/login">
+<PortalGuard RequiredRole="Merchant" RedirectTo="/merchant/login" OnAuthorized="LoadAfterAuthAsync">
     <MudContainer MaxWidth="MaxWidth.Large" Class="my-8">
         <MudText Typo="Typo.h4" Class="mb-2">Tạo POI mới</MudText>
-        <MudText Typo="Typo.body2" Class="mb-6">Mỗi owner có thể tạo nhiều POI, sau đó submit lên admin để duyệt.</MudText>
+        <MudText Typo="Typo.body2" Class="mb-6">POI mới mặc định là Basic. Bạn có thể mua Premium hoặc Boost trong trang quản lý POI sau khi tạo.</MudText>
 
         <MudPaper Class="pa-6 glass-panel" Style="border-radius: 16px;">
             <MudGrid>
                 <MudItem xs="12" md="6">
                     <MudTextField @bind-Value="_model.Name" Label="Tên quán" Variant="Variant.Outlined" Class="mb-4" />
                     <MudTextField @bind-Value="_model.Address" Label="Địa chỉ" Variant="Variant.Outlined" Class="mb-4" />
-                    <MudTextField @bind-Value="_model.SourceDescription" Label="Nội dung nguồn" Variant="Variant.Outlined" Lines="8" Class="mb-4" />
-                    <MudSelect T="string" @bind-Value="_model.SubscriptionPackage" Label="Gói dịch vụ" Variant="Variant.Outlined" Class="mb-4">
-                        <MudSelectItem Value="@("Basic")">Basic</MudSelectItem>
-                        <MudSelectItem Value="@("Premium")">Premium</MudSelectItem>
-                    </MudSelect>
+                    <MudTextField @bind-Value="_model.TagText" Label="Tag quán" HelperText="Nhập cách nhau bằng dấu phẩy, ví dụ: ốc đêm, ăn vặt, trà sữa" Variant="Variant.Outlined" Class="mb-4" />
+                    <MudTextField T="string" Value="_model.SourceDescription" ValueChanged="OnSourceDescriptionChangedAsync" Label="Nội dung nguồn" Variant="Variant.Outlined" Lines="8" Class="mb-4" Immediate="true" />
+                    <MudPaper Class="pa-3 mb-4" Outlined="true">
+                        <div class="d-flex justify-space-between align-center mb-2">
+                            <div>
+                                <MudText Typo="Typo.subtitle2">Bản dịch sẽ lưu cùng POI</MudText>
+                                <MudText Typo="Typo.caption">Hệ thống tự dịch khi bạn nhập nội dung nguồn. Có thể chỉnh tay trước khi lưu.</MudText>
+                            </div>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" Disabled="_translationLoading" OnClick="() => PreviewTranslationsAsync(true)">
+                                Dịch ngay
+                            </MudButton>
+                        </div>
+                        @if (_translationLoading)
+                        {
+                            <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-2" />
+                        }
+                        @if (!string.IsNullOrWhiteSpace(_translationMessage))
+                        {
+                            <MudAlert Severity="@GetTranslationAlertSeverity(_model)" Dense="true" Class="mb-3">
+                                @_translationMessage
+                            </MudAlert>
+                        }
+                        @foreach (var language in TranslationLanguages)
+                        {
+                            var code = language.Code;
+                            <MudTextField T="string"
+                                          Value="@GetTranslation(_model, code)"
+                                          ValueChanged="@(value => SetTranslation(_model, code, value))"
+                                          Label="@($"{language.Label} ({code})")"
+                                          HelperText="@GetTranslationHelper(_model, code)"
+                                          Variant="Variant.Outlined"
+                                          Lines="3"
+                                          Class="mb-3" />
+                        }
+                    </MudPaper>
+                    <MudAlert Severity="Severity.Info" Dense="true">Premium/Boost được kích hoạt qua thanh toán PayOS, không sửa trực tiếp trong form tạo POI.</MudAlert>
                 </MudItem>
                 <MudItem xs="12" md="6">
                     <MudText Typo="Typo.subtitle1" Class="mb-2">Chọn vị trí POI</MudText>
-                    <div id="merchant-map" style="height: 360px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1;"></div>
-                    <MudSlider @bind-Value="_model.Radius" Min="10" Max="500" Step="10" Color="Color.Primary" Class="mt-4">Radius: @_model.Radius m</MudSlider>
+                    <div id="@LocationMapId" style="height: 360px; width: 100%; border-radius: 12px; border: 1px solid #cbd5e1;"></div>
+                    <MudText Typo="Typo.caption" Class="mt-2 d-block">Kéo marker hoặc click bản đồ để chọn vị trí. Bạn cũng có thể nhập lat/lng chính xác bên dưới.</MudText>
+
+                    <MudGrid Class="mt-3">
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField T="double" Value="_model.Latitude" ValueChanged="OnLatitudeChangedAsync" Label="Latitude" Variant="Variant.Outlined" />
+                        </MudItem>
+                        <MudItem xs="12" sm="6">
+                            <MudNumericField T="double" Value="_model.Longitude" ValueChanged="OnLongitudeChangedAsync" Label="Longitude" Variant="Variant.Outlined" />
+                        </MudItem>
+                    </MudGrid>
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">
+                        Radius được hệ thống tự áp dụng theo gói. POI mới dùng Basic: 50m.
+                    </MudAlert>
                 </MudItem>
             </MudGrid>
 
@@ -39,45 +85,77 @@
 </PortalGuard>
 
 @code {
+    private const string LocationMapId = "merchant-create-location-map";
     private CreatePoiModel _model = new();
+    private bool _mapPending;
+    private bool _translationLoading;
+    private string _translationMessage = string.Empty;
+    private CancellationTokenSource? _translationDebounceCts;
+    private DotNetObjectReference<MerchantRegister>? _mapRef;
+    private static readonly TranslationLanguage[] TranslationLanguages =
+    [
+        new("EN", "English"),
+        new("KO", "Korean"),
+        new("JA", "Japanese"),
+        new("ZH", "Chinese"),
+    ];
 
-    private bool _mapInitialized;
+    private Task LoadAfterAuthAsync(SessionUser user)
+    {
+        _mapPending = true;
+        return Task.CompletedTask;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!_mapInitialized)
+        if (_mapPending)
         {
-            var isMapReady = await JS.InvokeAsync<bool>("eval", "document.getElementById('merchant-map') != null");
-            if (isMapReady)
-            {
-                _mapInitialized = true;
-                await Task.Delay(50);
-                var objRef = DotNetObjectReference.Create(this);
-                await JS.InvokeVoidAsync("initMapPicker", "merchant-map", objRef);
-            }
+            _mapPending = false;
+            _mapRef?.Dispose();
+            _mapRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initPoiLocationEditor", LocationMapId, _model.Latitude, _model.Longitude, _model.Radius, _mapRef);
         }
     }
 
     [JSInvokable]
-    public void UpdateCoordinates(double newLat, double newLng)
+    public void UpdateLocationFromMap(double latitude, double longitude)
     {
-        _model.Latitude = newLat;
-        _model.Longitude = newLng;
+        _model.Latitude = Math.Round(latitude, 6);
+        _model.Longitude = Math.Round(longitude, 6);
+        StateHasChanged();
+    }
+
+    private async Task OnLatitudeChangedAsync(double value)
+    {
+        _model.Latitude = value;
+        await JS.InvokeVoidAsync("updatePoiLocationPosition", LocationMapId, _model.Latitude, _model.Longitude);
+    }
+
+    private async Task OnLongitudeChangedAsync(double value)
+    {
+        _model.Longitude = value;
+        await JS.InvokeVoidAsync("updatePoiLocationPosition", LocationMapId, _model.Latitude, _model.Longitude);
     }
 
     private async Task CreateAsync()
     {
+        if (!HasReadyTranslations(_model))
+        {
+            await PreviewTranslationsAsync(false);
+        }
+
         var response = await Http.PostAsJsonAsync("api/poi", new
         {
             _model.Name,
             _model.Address,
+            Tags = ParseTags(_model.TagText),
             SourceLanguage = "vi",
             SourceDescription = _model.SourceDescription,
+            TranslatedDescriptions = BuildReadyTranslations(_model),
             MerchantNote = _model.SourceDescription,
             _model.Latitude,
             _model.Longitude,
-            _model.Radius,
-            _model.SubscriptionPackage,
+            SubscriptionPackage = "Basic",
         });
 
         if (!response.IsSuccessStatusCode)
@@ -90,14 +168,207 @@
         Navigation.NavigateTo("/merchant/pois", true);
     }
 
+    private Task OnSourceDescriptionChangedAsync(string value)
+    {
+        _model.SourceDescription = value;
+        QueueTranslationPreview();
+        return Task.CompletedTask;
+    }
+
+    private void QueueTranslationPreview()
+    {
+        _translationDebounceCts?.Cancel();
+        _translationDebounceCts?.Dispose();
+
+        if (string.IsNullOrWhiteSpace(_model.SourceDescription))
+        {
+            _model.TranslatedDescriptions.Clear();
+            _model.TranslationStatuses.Clear();
+            _model.TranslationErrors.Clear();
+            _translationMessage = string.Empty;
+            return;
+        }
+
+        var cts = new CancellationTokenSource();
+        _translationDebounceCts = cts;
+        _ = DebouncedPreviewAsync(cts.Token);
+    }
+
+    private async Task DebouncedPreviewAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await Task.Delay(900, cancellationToken);
+            await InvokeAsync(() => PreviewTranslationsAsync(false));
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task PreviewTranslationsAsync(bool showSnackbar)
+    {
+        var sourceText = (_model.SourceDescription ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(sourceText))
+        {
+            _model.TranslatedDescriptions.Clear();
+            _model.TranslationStatuses.Clear();
+            _model.TranslationErrors.Clear();
+            _translationMessage = string.Empty;
+            return;
+        }
+
+        _translationLoading = true;
+        _translationMessage = "Đang dịch nội dung nguồn...";
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("api/translation/preview", new TranslationPreviewRequestModel
+            {
+                SourceLanguage = "vi",
+                SourceDescription = sourceText,
+                TargetLanguages = TranslationLanguages.Select(x => x.Code).ToArray(),
+            });
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _translationMessage = "Không gọi được API dịch. Bạn vẫn có thể nhập bản dịch thủ công.";
+                if (showSnackbar)
+                {
+                    Snackbar.Add(_translationMessage, Severity.Warning);
+                }
+
+                return;
+            }
+
+            var preview = await response.Content.ReadFromJsonAsync<TranslationPreviewResponseModel>();
+            if (preview == null)
+            {
+                _translationMessage = "API dịch không trả về dữ liệu hợp lệ.";
+                return;
+            }
+
+            foreach (var language in TranslationLanguages)
+            {
+                if (!preview.Contents.TryGetValue(language.Code, out var content))
+                {
+                    continue;
+                }
+
+                _model.TranslationStatuses[language.Code] = content.Status;
+                _model.TranslationErrors[language.Code] = content.ErrorMessage;
+                if (content.Status == "Ready")
+                {
+                    _model.TranslatedDescriptions[language.Code] = content.Description;
+                }
+                else if (!_model.TranslatedDescriptions.ContainsKey(language.Code))
+                {
+                    _model.TranslatedDescriptions[language.Code] = string.Empty;
+                }
+            }
+
+            _translationMessage = preview.IsProviderConfigured
+                ? "Bản dịch đã sẵn sàng và sẽ được lưu khi tạo draft."
+                : "Google Cloud Translation chưa được cấu hình. Nhập tay bản dịch hoặc cấu hình API key.";
+
+            if (showSnackbar)
+            {
+                Snackbar.Add(_translationMessage, preview.IsProviderConfigured ? Severity.Success : Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            _translationMessage = $"Lỗi dịch: {ex.Message}";
+            if (showSnackbar)
+            {
+                Snackbar.Add(_translationMessage, Severity.Error);
+            }
+        }
+        finally
+        {
+            _translationLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private static string GetTranslation(CreatePoiModel model, string language)
+    {
+        return model.TranslatedDescriptions.TryGetValue(language, out var text) ? text : string.Empty;
+    }
+
+    private static void SetTranslation(CreatePoiModel model, string language, string value)
+    {
+        model.TranslatedDescriptions[language] = value;
+        model.TranslationStatuses[language] = string.IsNullOrWhiteSpace(value) ? "PendingManual" : "Ready";
+        model.TranslationErrors.Remove(language);
+    }
+
+    private static string GetTranslationHelper(CreatePoiModel model, string language)
+    {
+        var status = model.TranslationStatuses.TryGetValue(language, out var value) ? value : "PendingManual";
+        if (status == "Ready")
+        {
+            return "Sẵn sàng lưu xuống DB.";
+        }
+
+        return model.TranslationErrors.TryGetValue(language, out var error) && !string.IsNullOrWhiteSpace(error)
+            ? error
+            : "Chưa có bản dịch. Có thể nhập tay.";
+    }
+
+    private static Dictionary<string, string> BuildReadyTranslations(CreatePoiModel model)
+    {
+        return TranslationLanguages
+            .Where(x => model.TranslationStatuses.TryGetValue(x.Code, out var status) && status == "Ready")
+            .Select(x => new { x.Code, Text = GetTranslation(model, x.Code).Trim() })
+            .Where(x => !string.IsNullOrWhiteSpace(x.Text))
+            .ToDictionary(x => x.Code, x => x.Text, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static bool HasReadyTranslations(CreatePoiModel model)
+    {
+        return BuildReadyTranslations(model).Count > 0;
+    }
+
+    private static Severity GetTranslationAlertSeverity(CreatePoiModel model)
+    {
+        return model.TranslationStatuses.Values.Any(x => x == "PendingManual")
+            ? Severity.Warning
+            : Severity.Success;
+    }
+
+    private static List<string> ParseTags(string value)
+    {
+        return (value ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(8)
+            .ToList();
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _translationDebounceCts?.Cancel();
+        _translationDebounceCts?.Dispose();
+        _mapRef?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+
+    private sealed record TranslationLanguage(string Code, string Label);
+
     private sealed class CreatePoiModel
     {
         public string Name { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
+        public string TagText { get; set; } = string.Empty;
         public string SourceDescription { get; set; } = string.Empty;
+        public Dictionary<string, string> TranslatedDescriptions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> TranslationStatuses { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> TranslationErrors { get; set; } = new(StringComparer.OrdinalIgnoreCase);
         public double Latitude { get; set; } = 10.7628;
         public double Longitude { get; set; } = 106.7005;
         public double Radius { get; set; } = 50;
-        public string SubscriptionPackage { get; set; } = "Basic";
     }
 }

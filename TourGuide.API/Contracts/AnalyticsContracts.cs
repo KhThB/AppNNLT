@@ -8,6 +8,23 @@ public sealed class PingRequest
     public double Latitude { get; set; }
     public double Longitude { get; set; }
     public double Speed { get; set; }
+    public string Platform { get; set; } = string.Empty;
+    public string AppVersion { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
+}
+
+public sealed class OnlineDeviceResponse
+{
+    public string DeviceId { get; set; } = string.Empty;
+    public string UserId { get; set; } = string.Empty;
+    public string SessionId { get; set; } = string.Empty;
+    public string Platform { get; set; } = string.Empty;
+    public string AppVersion { get; set; } = string.Empty;
+    public string DeviceName { get; set; } = string.Empty;
+    public double Latitude { get; set; }
+    public double Longitude { get; set; }
+    public double Speed { get; set; }
+    public DateTime LastSeenAt { get; set; }
 }
 
 public sealed class QrScanRequest
@@ -31,6 +48,7 @@ public sealed class NarrationPlayRequest
     public string PoiId { get; set; } = string.Empty;
     public string VisitorId { get; set; } = string.Empty;
     public string SessionId { get; set; } = string.Empty;
+    public string Language { get; set; } = "VI";
     public string TriggerSource { get; set; } = "WebQR";
 }
 
@@ -131,4 +149,11 @@ public sealed class OwnerOverviewResponse
     public IReadOnlyList<TrendPoint> QrTrend { get; set; } = Array.Empty<TrendPoint>();
     public IReadOnlyList<TrendPoint> TtsTrend { get; set; } = Array.Empty<TrendPoint>();
     public IReadOnlyList<OwnerAlertResponse> Alerts { get; set; } = Array.Empty<OwnerAlertResponse>();
+}
+
+public sealed class RepairResponse
+{
+    public int Matched { get; set; }
+    public int Updated { get; set; }
+    public string Message { get; set; } = string.Empty;
 }

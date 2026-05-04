@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:zxing="clr-namespace:ZXing.Net.Maui.Controls;assembly=ZXing.Net.MAUI.Controls"
+             x:Class="Mobile.Views.QrScannerPage"
+             Title="Quét QR Quán Ăn"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             xmlns:controls="clr-namespace:Mobile.Controls">
+
+    <Grid>
+        <Grid Margin="0,0,0,90">
+            <Grid>
+        <zxing:CameraBarcodeReaderView
+            x:Name="barcodeReader"
+            BarcodesDetected="OnBarcodesDetected"
+            IsDetecting="True" />
+
+        <!-- Overlay 3x3 Grid for Dark Background with Transparent Center -->
+        <Grid ColumnDefinitions="*, 280, *" RowDefinitions="*, 280, *">
+            <!-- Top -->
+            <BoxView Grid.Row="0" Grid.ColumnSpan="3" Color="#D9000000" />
+            <VerticalStackLayout Grid.Row="0" Grid.ColumnSpan="3" VerticalOptions="End" HorizontalOptions="Center" Margin="0,0,0,40" Spacing="8">
+                <Label Text="Quét mã QR Quán ăn" TextColor="White" FontSize="24" FontAttributes="Bold" HorizontalOptions="Center" />
+                <Label Text="Đưa mã QR vào trong khung hình để quét tự động" TextColor="#D0D0D0" FontSize="14" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+
+            <!-- Bottom -->
+            <BoxView Grid.Row="2" Grid.ColumnSpan="3" Color="#D9000000" />
+            
+            <!-- Left -->
+            <BoxView Grid.Row="1" Grid.Column="0" Color="#D9000000" />
+            <!-- Right -->
+            <BoxView Grid.Row="1" Grid.Column="2" Color="#D9000000" />
+
+            <!-- Center Frame -->
+            <Border Grid.Row="1" Grid.Column="1"
+                    Stroke="{StaticResource Primary}"
+                    StrokeThickness="4"
+                    BackgroundColor="Transparent"
+                    StrokeShape="RoundRectangle 24">
+                <Border.Shadow>
+                    <Shadow Brush="{StaticResource Primary}" Offset="0,0" Radius="30" Opacity="0.6" />
+                </Border.Shadow>
+                
+                <Grid>
+                    <!-- Animated Scan Line -->
+                    <BoxView x:Name="ScanLine"
+                             Color="{StaticResource Primary}"
+                             HeightRequest="4"
+                             HorizontalOptions="Fill"
+                             VerticalOptions="Start" />
+                </Grid>
+            </Border>
+
+            <!-- Instructional Text (Bottom) -->
+            <VerticalStackLayout Grid.Row="2" Grid.ColumnSpan="3" VerticalOptions="Start" HorizontalOptions="Center" Margin="0,40,0,0" Spacing="10">
+                <ActivityIndicator IsRunning="True" Color="{StaticResource Primary}" HeightRequest="30" WidthRequest="30" HorizontalOptions="Center" />
+                <Label x:Name="lblResult"
+                       Text="Đang nhận diện..."
+                       TextColor="White"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Grid>
+            </Grid>
+        </Grid>
+        <controls:BottomTabBar />
+    </Grid>
+
+</ContentPage>

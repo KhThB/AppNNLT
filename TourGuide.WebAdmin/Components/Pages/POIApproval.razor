@@ -6,38 +6,228 @@
 @inject ISnackbar Snackbar
 
 <PortalGuard RequiredRole="Admin" RedirectTo="/admin/login" OnAuthorized="LoadAfterAuthAsync">
-    <MudText Typo="Typo.h4" Class="mb-4">POI chờ duyệt</MudText>
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h4">POI chờ duyệt</MudText>
+            <MudText Typo="Typo.body2">Xem thay đổi so với bản đã duyệt gần nhất trước khi quyết định.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ReloadAsync">Tải lại</MudButton>
+    </div>
 
-    <MudTable Items="_items" Hover="true" Striped="true" Loading="_loading">
-        <HeaderContent>
-            <MudTh>Tên quán</MudTh>
-            <MudTh>Trạng thái moderation</MudTh>
-            <MudTh>Nội dung nguồn</MudTh>
-            <MudTh>Reject reason</MudTh>
-            <MudTh>Hành động</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>@context.Name</MudTd>
-            <MudTd>
-                <MudChip T="string" Color="@ChipColor(context.ModerationStatus)" Size="Size.Small">@context.ModerationStatus</MudChip>
-            </MudTd>
-            <MudTd>@Shorten(context.SourceDescription)</MudTd>
-            <MudTd>
-                <MudTextField T="string" Value="@GetReason(context.Id)" ValueChanged="value => SetReason(context.Id, value)" Variant="Variant.Outlined" />
-            </MudTd>
-            <MudTd>
-                <div class="d-flex gap-2">
-                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" OnClick="() => ReviewAsync(context.Id, true)">Duyệt</MudButton>
-                    <MudButton Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" OnClick="() => ReviewAsync(context.Id, false)">Từ chối</MudButton>
-                </div>
-            </MudTd>
-        </RowTemplate>
-    </MudTable>
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">Hiện chưa có POI nào đang chờ duyệt.</MudAlert>
+    }
+    else
+    {
+        <MudStack Spacing="3">
+            @foreach (var item in _items)
+            {
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <div class="d-flex flex-wrap justify-space-between gap-3">
+                        <div>
+                            <div class="d-flex align-center gap-2 mb-1">
+                                <MudText Typo="Typo.h6">@item.Name</MudText>
+                                <MudChip T="string" Color="@(item.IsNewPoi ? Color.Info : Color.Warning)" Size="Size.Small">
+                                    @(item.IsNewPoi ? "POI mới" : "Có thay đổi")
+                                </MudChip>
+                                <MudChip T="string" Color="@ChipColor(item.ModerationStatus)" Size="Size.Small">
+                                    @item.ModerationStatus
+                                </MudChip>
+                            </div>
+                            <MudText Typo="Typo.body2">@item.Address</MudText>
+                            <MudText Typo="Typo.caption" Class="d-block mt-1">@Shorten(item.SourceDescription, 160)</MudText>
+                        </div>
+                        <div class="d-flex flex-column gap-2" style="min-width: 260px;">
+                            <MudTextField T="string"
+                                          Value="@GetReason(item.Id)"
+                                          ValueChanged="value => SetReason(item.Id, value)"
+                                          Label="Lý do từ chối"
+                                          Variant="Variant.Outlined"
+                                          Lines="2" />
+                            <div class="d-flex gap-2 justify-end">
+                                <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" OnClick="() => ReviewAsync(item.Id, true)">Duyệt</MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined" OnClick="() => ReviewAsync(item.Id, false)">Từ chối</MudButton>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Info" OnClick="() => ToggleDetails(item.Id)">
+                            @(IsDetailsOpen(item.Id) ? "Ẩn chi tiết hồ sơ" : "Xem chi tiết hồ sơ gửi duyệt")
+                        </MudButton>
+                    </div>
+
+                    @if (IsDetailsOpen(item.Id))
+                    {
+                        <div class="mt-3 pa-4" style="border:1px solid #fed7aa; border-radius:12px; background:#fff7ed;">
+                            <MudGrid>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">OwnerId</MudText>
+                                    <MudText Typo="Typo.body2">@item.OwnerId</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Trạng thái workflow</MudText>
+                                    <MudText Typo="Typo.body2">@item.Status</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Content version</MudText>
+                                    <MudText Typo="Typo.body2">@item.ContentVersion</MudText>
+                                </MudItem>
+
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Gói dịch vụ</MudText>
+                                    <MudText Typo="Typo.body2">@item.SubscriptionPackage</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Radius hệ thống</MudText>
+                                    <MudText Typo="Typo.body2">@item.Radius.ToString("N0") m</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Boost</MudText>
+                                    <MudText Typo="Typo.body2">Priority @item.PriorityLevel · Boost @item.BoostPriority · hết hạn @FormatDate(item.BoostExpiresAt)</MudText>
+                                </MudItem>
+
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Vị trí</MudText>
+                                    <MudText Typo="Typo.body2">@FormatLocation(item.Latitude, item.Longitude)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Ngày tạo</MudText>
+                                    <MudText Typo="Typo.body2">@FormatDate(item.CreatedAt)</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Cập nhật gần nhất</MudText>
+                                    <MudText Typo="Typo.body2">@FormatDate(item.UpdatedAt)</MudText>
+                                </MudItem>
+
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">QR/TTS counted</MudText>
+                                    <MudText Typo="Typo.body2">@item.CountedQrScanCount / @item.CountedTtsPlayCount</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Ngôn ngữ nguồn</MudText>
+                                    <MudText Typo="Typo.body2">@item.SourceLanguage</MudText>
+                                </MudItem>
+                                <MudItem xs="12" md="4">
+                                    <MudText Typo="Typo.caption">Trạng thái dịch</MudText>
+                                    <MudText Typo="Typo.body2">@item.TranslationStatus</MudText>
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudText Typo="Typo.caption">Tag quán</MudText>
+                                    <div class="d-flex flex-wrap gap-2 mt-1">
+                                        @if (item.Tags.Count == 0)
+                                        {
+                                            <MudText Typo="Typo.body2">Chưa có tag.</MudText>
+                                        }
+                                        else
+                                        {
+                                            @foreach (var tag in item.Tags)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Primary">@tag</MudChip>
+                                            }
+                                        }
+                                    </div>
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudText Typo="Typo.caption">Nội dung nguồn gửi duyệt</MudText>
+                                    <div class="mt-1 pa-3" style="white-space:pre-wrap; border-radius:10px; background:white; border:1px solid #ffedd5;">@DisplayValueFull(item.SourceDescription)</div>
+                                </MudItem>
+
+                                <MudItem xs="12">
+                                    <MudText Typo="Typo.caption">Bản dịch đang có</MudText>
+                                    @if (item.TranslatedDescriptions.Count == 0)
+                                    {
+                                        <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-2">Chưa có bản dịch sẵn cho POI này.</MudAlert>
+                                    }
+                                    else
+                                    {
+                                        <MudTable Items="OrderedTranslations(item.TranslatedDescriptions)" Dense="true" Hover="true" Class="mt-2">
+                                            <HeaderContent>
+                                                <MudTh>Ngôn ngữ</MudTh>
+                                                <MudTh>Nội dung</MudTh>
+                                            </HeaderContent>
+                                            <RowTemplate>
+                                                <MudTd>@DisplayLanguage(context.Key)</MudTd>
+                                                <MudTd>
+                                                    <div style="white-space:pre-wrap;">@context.Value</div>
+                                                </MudTd>
+                                            </RowTemplate>
+                                        </MudTable>
+                                    }
+                                </MudItem>
+
+                                <MudItem xs="12" md="6">
+                                    <MudText Typo="Typo.caption">Ghi chú merchant</MudText>
+                                    <div class="mt-1 pa-3" style="white-space:pre-wrap; min-height:56px; border-radius:10px; background:white; border:1px solid #ffedd5;">@DisplayValueFull(item.MerchantNote)</div>
+                                </MudItem>
+                                <MudItem xs="12" md="6">
+                                    <MudText Typo="Typo.caption">Ảnh quán</MudText>
+                                    @if (string.IsNullOrWhiteSpace(item.ImageUrl))
+                                    {
+                                        <MudText Typo="Typo.body2" Class="mt-1">Chưa có ảnh.</MudText>
+                                    }
+                                    else
+                                    {
+                                        <div class="mt-1 d-flex flex-column gap-2">
+                                            <MudLink Href="@item.ImageUrl" Target="_blank">Mở ảnh gốc</MudLink>
+                                            <img src="@item.ImageUrl" alt="@item.Name" style="max-width:260px; max-height:160px; object-fit:cover; border-radius:10px; border:1px solid #ffedd5;" />
+                                        </div>
+                                    }
+                                </MudItem>
+                            </MudGrid>
+                        </div>
+                    }
+
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Thay đổi cần duyệt</MudText>
+                    @if (item.Changes.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true">Không phát hiện thay đổi so với bản đã duyệt gần nhất.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="item.Changes" Dense="true" Hover="true">
+                            <HeaderContent>
+                                <MudTh>Field</MudTh>
+                                <MudTh>Loại</MudTh>
+                                <MudTh>Trước đó</MudTh>
+                                <MudTh>Bản gửi duyệt</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.Label</MudTd>
+                                <MudTd>
+                                    <MudChip T="string" Size="Size.Small" Color="@ChangeColor(context.ChangeType)">
+                                        @ChangeLabel(context.ChangeType)
+                                    </MudChip>
+                                </MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body2">@DisplayValue(context.OldValue)</MudText>
+                                </MudTd>
+                                <MudTd>
+                                    <MudText Typo="Typo.body2">@DisplayValue(context.NewValue)</MudText>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+            }
+        </MudStack>
+    }
 </PortalGuard>
 
 @code {
-    private List<PoiItem> _items = new();
+    private List<PoiApprovalItem> _items = new();
     private Dictionary<string, string> _reasons = new();
+    private HashSet<string> _openDetails = new(StringComparer.OrdinalIgnoreCase);
     private bool _loading = true;
 
     private async Task ReloadAsync()
@@ -45,13 +235,13 @@
         _loading = true;
         try
         {
-            var result = await Http.GetFromJsonAsync<PagedResponse>("api/poi?status=Submitted&page=1&pageSize=50");
-            _items = result?.Items ?? new();
+            _items = await Http.GetFromJsonAsync<List<PoiApprovalItem>>("api/poi/submitted-with-changes") ?? new();
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Error loading POI Approvals: {ex}");
             Snackbar.Add("Lỗi tải dữ liệu POI chờ duyệt. Vui lòng kiểm tra lại kết nối.", Severity.Error);
+            _items = new();
         }
         finally
         {
@@ -67,6 +257,15 @@
 
     private string GetReason(string id) => _reasons.TryGetValue(id, out var reason) ? reason : string.Empty;
     private void SetReason(string id, string value) => _reasons[id] = value;
+    private bool IsDetailsOpen(string id) => _openDetails.Contains(id);
+
+    private void ToggleDetails(string id)
+    {
+        if (!_openDetails.Add(id))
+        {
+            _openDetails.Remove(id);
+        }
+    }
 
     private async Task ReviewAsync(string id, bool approve)
     {
@@ -86,7 +285,60 @@
         Snackbar.Add("Không thể cập nhật trạng thái duyệt.", Severity.Error);
     }
 
-    private static string Shorten(string text) => string.IsNullOrWhiteSpace(text) || text.Length <= 90 ? text : $"{text[..90]}...";
+    private static string Shorten(string text, int length) =>
+        string.IsNullOrWhiteSpace(text) || text.Length <= length ? text : $"{text[..length]}...";
+
+    private static string DisplayValue(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : Shorten(value, 220);
+
+    private static string DisplayValueFull(string value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    private static string FormatLocation(double latitude, double longitude) =>
+        $"{latitude:0.######}, {longitude:0.######}";
+
+    private static string FormatDate(DateTime value) =>
+        value == default ? "—" : value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+
+    private static string FormatDate(DateTime? value) =>
+        value.HasValue ? FormatDate(value.Value) : "—";
+
+    private static IReadOnlyList<KeyValuePair<string, string>> OrderedTranslations(Dictionary<string, string> translations)
+    {
+        var order = new[] { "EN", "KO", "JA", "ZH" };
+        return translations
+            .OrderBy(x =>
+            {
+                var index = Array.IndexOf(order, x.Key.ToUpperInvariant());
+                return index < 0 ? int.MaxValue : index;
+            })
+            .ThenBy(x => x.Key)
+            .ToList();
+    }
+
+    private static string DisplayLanguage(string language) => language.ToUpperInvariant() switch
+    {
+        "EN" => "English",
+        "KO" => "Korean",
+        "JA" => "Japanese",
+        "ZH" => "Chinese",
+        "VI" => "Vietnamese",
+        _ => language,
+    };
+
+    private static string ChangeLabel(string type) => type switch
+    {
+        "Added" => "Mới",
+        "Removed" => "Đã xóa",
+        _ => "Đã sửa",
+    };
+
+    private static Color ChangeColor(string type) => type switch
+    {
+        "Added" => Color.Success,
+        "Removed" => Color.Error,
+        _ => Color.Warning,
+    };
 
     private static Color ChipColor(string status) => status switch
     {
@@ -95,16 +347,43 @@
         _ => Color.Warning,
     };
 
-    private sealed class PagedResponse
-    {
-        public List<PoiItem> Items { get; set; } = new();
-    }
-
-    private sealed class PoiItem
+    private sealed class PoiApprovalItem
     {
         public string Id { get; set; } = string.Empty;
+        public string OwnerId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public List<string> Tags { get; set; } = new();
+        public string Status { get; set; } = string.Empty;
         public string ModerationStatus { get; set; } = string.Empty;
+        public string TranslationStatus { get; set; } = string.Empty;
+        public string SourceLanguage { get; set; } = string.Empty;
         public string SourceDescription { get; set; } = string.Empty;
+        public Dictionary<string, string> TranslatedDescriptions { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+        public string MerchantNote { get; set; } = string.Empty;
+        public string SubscriptionPackage { get; set; } = string.Empty;
+        public string ImageUrl { get; set; } = string.Empty;
+        public double Radius { get; set; }
+        public int PriorityLevel { get; set; }
+        public int BoostPriority { get; set; }
+        public DateTime? BoostExpiresAt { get; set; }
+        public int ContentVersion { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public int CountedQrScanCount { get; set; }
+        public int CountedTtsPlayCount { get; set; }
+        public bool IsNewPoi { get; set; }
+        public List<PoiChangeItem> Changes { get; set; } = new();
+    }
+
+    private sealed class PoiChangeItem
+    {
+        public string Field { get; set; } = string.Empty;
+        public string Label { get; set; } = string.Empty;
+        public string ChangeType { get; set; } = string.Empty;
+        public string OldValue { get; set; } = string.Empty;
+        public string NewValue { get; set; } = string.Empty;
     }
 }

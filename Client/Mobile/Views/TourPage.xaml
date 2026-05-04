@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Mobile.Views.TourPage"
+             Title="Gợi ý Tour"
+             Shell.NavBarIsVisible="False"
+             Shell.TabBarIsVisible="False"
+             xmlns:controls="clr-namespace:Mobile.Controls"
+             BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}">
+    
+    <Grid>
+        <Grid Margin="0,0,0,90">
+            <ScrollView>
+                <VerticalStackLayout Spacing="25" Padding="15,20,15,20">
+                    
+                    <!-- 1. Header -->
+                    <Grid ColumnDefinitions="*, Auto">
+                        <VerticalStackLayout Grid.Column="0">
+                            <Label Text="Gợi ý Lịch trình Tour" FontSize="24" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                            <Label Text="Khám phá ẩm thực theo lộ trình" FontSize="14" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" />
+                        </VerticalStackLayout>
+                        <Border Grid.Column="1" StrokeShape="RoundRectangle 20" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}" HeightRequest="40" WidthRequest="40">
+                            <Label Text="🧭" HorizontalOptions="Center" VerticalOptions="Center" FontSize="20" />
+                        </Border>
+                    </Grid>
+
+                    <!-- 2. Tour Cards List -->
+                    <VerticalStackLayout Spacing="25">
+                        
+                        <!-- Card 1 -->
+                        <Border StrokeShape="RoundRectangle 24" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}">
+                            <Border.Shadow>
+                                <Shadow Brush="Black" Offset="0,6" Radius="15" Opacity="0.08" />
+                            </Border.Shadow>
+                            
+                            <Grid RowDefinitions="180, Auto">
+                                <!-- Cover Image (Ready for Data Binding) -->
+                                <Image Grid.Row="0" Source="dotnet_bot.png" Aspect="AspectFill" BackgroundColor="{StaticResource Secondary}" />
+                                
+                                <!-- Badge "Mới" -->
+                                <Border Grid.Row="0" HorizontalOptions="Start" VerticalOptions="Start" Margin="15" 
+                                        BackgroundColor="#FF3B30" StrokeThickness="0" StrokeShape="RoundRectangle 10" Padding="10,5">
+                                    <Label Text="MỚI" TextColor="White" FontSize="10" FontAttributes="Bold" />
+                                </Border>
+
+                                <VerticalStackLayout Grid.Row="1" Padding="20" Spacing="15">
+                                    <!-- Tour Title -->
+                                    <Label Text="Tour Ăn Vặt Sinh Viên" FontSize="20" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                    
+                                    <!-- Category Tags (Ready for BindableLayout) -->
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Border StrokeShape="RoundRectangle 8" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}" Padding="8,4">
+                                            <Label Text="Ăn vặt" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                        </Border>
+                                        <Border StrokeShape="RoundRectangle 8" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}" Padding="8,4">
+                                            <Label Text="Sinh viên" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                        </Border>
+                                        <Border StrokeShape="RoundRectangle 8" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}" Padding="8,4">
+                                            <Label Text="Vỉa hè" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                        </Border>
+                                    </HorizontalStackLayout>
+
+                                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" />
+
+                                    <!-- Stats -->
+                                    <Grid ColumnDefinitions="*, *, *">
+                                        <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="2">
+                                            <Label Text="🚶 1.2 km" FontSize="13" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" HorizontalOptions="Center" />
+                                            <Label Text="Quãng đường" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="2">
+                                            <Label Text="🍽️ 3 Quán" FontSize="13" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" HorizontalOptions="Center" />
+                                            <Label Text="Địa điểm" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="2">
+                                            <Label Text="💰 150k" FontSize="13" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" HorizontalOptions="Center" />
+                                            <Label Text="Chi phí/người" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+
+                                    <!-- CTA -->
+                                    <Button Text="Khám phá ngay" BackgroundColor="{StaticResource Primary}" TextColor="White" CornerRadius="12" HeightRequest="45" FontAttributes="Bold" Margin="0,5,0,0">
+                                        <Button.Shadow>
+                                            <Shadow Brush="{StaticResource Primary}" Offset="0,4" Radius="8" Opacity="0.3" />
+                                        </Button.Shadow>
+                                    </Button>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+
+                        <!-- Card 2 -->
+                        <Border StrokeShape="RoundRectangle 24" StrokeThickness="0" BackgroundColor="{AppThemeBinding Light={StaticResource CardBackgroundColorLight}, Dark={StaticResource CardBackgroundColorDark}}">
+                            <Border.Shadow>
+                                <Shadow Brush="Black" Offset="0,6" Radius="15" Opacity="0.08" />
+                            </Border.Shadow>
+                            
+                            <Grid RowDefinitions="180, Auto">
+                                <!-- Cover Image -->
+                                <Image Grid.Row="0" Source="dotnet_bot.png" Aspect="AspectFill" BackgroundColor="{StaticResource Tertiary}" />
+                                
+                                <!-- Badge "Hot" -->
+                                <Border Grid.Row="0" HorizontalOptions="Start" VerticalOptions="Start" Margin="15" 
+                                        BackgroundColor="#FF9500" StrokeThickness="0" StrokeShape="RoundRectangle 10" Padding="10,5">
+                                    <Label Text="HOT" TextColor="White" FontSize="10" FontAttributes="Bold" />
+                                </Border>
+
+                                <VerticalStackLayout Grid.Row="1" Padding="20" Spacing="15">
+                                    <!-- Tour Title -->
+                                    <Label Text="Tour Ốc Đêm Cuối Tuần" FontSize="20" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                    
+                                    <!-- Category Tags -->
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Border StrokeShape="RoundRectangle 8" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}" Padding="8,4">
+                                            <Label Text="Hải sản" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                        </Border>
+                                        <Border StrokeShape="RoundRectangle 8" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}" Padding="8,4">
+                                            <Label Text="Nhậu" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                        </Border>
+                                        <Border StrokeShape="RoundRectangle 8" StrokeThickness="1" Stroke="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" BackgroundColor="{AppThemeBinding Light={StaticResource PageBackgroundColorLight}, Dark={StaticResource PageBackgroundColorDark}}" Padding="8,4">
+                                            <Label Text="Đêm" FontSize="12" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" />
+                                        </Border>
+                                    </HorizontalStackLayout>
+
+                                    <BoxView HeightRequest="1" Color="{AppThemeBinding Light={StaticResource BorderColorLight}, Dark={StaticResource BorderColorDark}}" />
+
+                                    <!-- Stats -->
+                                    <Grid ColumnDefinitions="*, *, *">
+                                        <VerticalStackLayout Grid.Column="0" HorizontalOptions="Center" Spacing="2">
+                                            <Label Text="🛵 3.5 km" FontSize="13" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" HorizontalOptions="Center" />
+                                            <Label Text="Quãng đường" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center" Spacing="2">
+                                            <Label Text="🍽️ 4 Quán" FontSize="13" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" HorizontalOptions="Center" />
+                                            <Label Text="Địa điểm" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="2" HorizontalOptions="Center" Spacing="2">
+                                            <Label Text="💰 350k" FontSize="13" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" HorizontalOptions="Center" />
+                                            <Label Text="Chi phí/người" FontSize="11" TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" HorizontalOptions="Center" />
+                                        </VerticalStackLayout>
+                                    </Grid>
+
+                                    <!-- CTA -->
+                                    <Button Text="Khám phá ngay" BackgroundColor="{StaticResource Primary}" TextColor="White" CornerRadius="12" HeightRequest="45" FontAttributes="Bold" Margin="0,5,0,0">
+                                        <Button.Shadow>
+                                            <Shadow Brush="{StaticResource Primary}" Offset="0,4" Radius="8" Opacity="0.3" />
+                                        </Button.Shadow>
+                                    </Button>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                        
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+        </Grid>
+        <controls:BottomTabBar />
+    </Grid>
+</ContentPage>

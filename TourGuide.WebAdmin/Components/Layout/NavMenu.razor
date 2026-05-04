@@ -1,12 +1,16 @@
 @using System.Net.Http.Headers
 @using Blazored.LocalStorage
+@using TourGuide.WebAdmin.Models
 @inject HttpClient Http
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Navigation
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">TourGuide Admin</a>
+        <a class="navbar-brand d-flex align-items-center gap-2" href="">
+            <span class="portal-logo portal-logo-admin">A</span>
+            <span>TourGuide Admin</span>
+        </a>
     </div>
 </div>
 
@@ -14,8 +18,20 @@
 
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler')?.click()">
     <nav class="flex-column">
-        @if (_hasToken)
+        @if (!_ready)
         {
+            <div class="portal-role-chip mx-3 mb-3">
+                <span class="portal-logo portal-logo-admin">A</span>
+                <span>Đang kiểm tra</span>
+            </div>
+        }
+        else if (_hasToken)
+        {
+            <div class="portal-role-chip mx-3 mb-3">
+                <span class="portal-logo portal-logo-admin">A</span>
+                <span>Chế độ Admin</span>
+            </div>
+
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="admin/dashboard" Match="NavLinkMatch.All">
                     <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Dashboard thống kê
@@ -42,9 +58,14 @@
         }
         else
         {
+            <div class="portal-role-chip mx-3 mb-3">
+                <span class="portal-logo portal-logo-admin">A</span>
+                <span>Cổng Admin</span>
+            </div>
+
             <div class="nav-item px-3">
                 <NavLink class="nav-link" href="admin/login">
-                    <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Admin Login
+                    <span class="bi bi-box-arrow-in-right" aria-hidden="true"></span> Đăng nhập
                 </NavLink>
             </div>
         }
@@ -52,6 +73,7 @@
 </div>
 
 @code {
+    private bool _ready;
     private bool _hasToken;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -61,11 +83,41 @@
             return;
         }
 
-        var token = await LocalStorage.GetItemAsync<string>("authToken");
-        var role = await LocalStorage.GetItemAsync<string>("userRole");
-        _hasToken = !string.IsNullOrWhiteSpace(token) &&
-                    string.Equals(role, "Admin", StringComparison.OrdinalIgnoreCase);
+        await RefreshAuthStateAsync();
+        _ready = true;
         StateHasChanged();
+    }
+
+    private async Task RefreshAuthStateAsync()
+    {
+        var token = await LocalStorage.GetItemAsync<string>("authToken");
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            _hasToken = false;
+            return;
+        }
+
+        try
+        {
+            Http.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            var me = await Http.GetFromJsonAsync<SessionUser>("api/auth/me");
+            _hasToken = string.Equals(me?.Role, "Admin", StringComparison.OrdinalIgnoreCase);
+
+            if (!_hasToken)
+            {
+                await ClearLocalSessionAsync();
+                return;
+            }
+
+            await LocalStorage.SetItemAsync("userId", me!.Id);
+            await LocalStorage.SetItemAsync("userRole", me.Role);
+            await LocalStorage.SetItemAsync("userName", me.FullName);
+        }
+        catch
+        {
+            _hasToken = false;
+            await ClearLocalSessionAsync();
+        }
     }
 
     private async Task LogoutAsync()
@@ -83,11 +135,16 @@
             }
         }
 
+        await ClearLocalSessionAsync();
+        _hasToken = false;
+        Navigation.NavigateTo("/admin/login", true);
+    }
+
+    private async Task ClearLocalSessionAsync()
+    {
         await LocalStorage.RemoveItemAsync("authToken");
         await LocalStorage.RemoveItemAsync("userId");
         await LocalStorage.RemoveItemAsync("userRole");
         await LocalStorage.RemoveItemAsync("userName");
-        _hasToken = false;
-        Navigation.NavigateTo("/admin/login", true);
     }
 }

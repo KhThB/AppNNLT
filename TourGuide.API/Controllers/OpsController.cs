@@ -14,11 +14,19 @@ namespace TourGuide.API.Controllers;
 public sealed class OpsController : ControllerBase
 {
     private readonly IAuditService _auditService;
+    private readonly IAnalyticsService _analyticsService;
+    private readonly IPoiService _poiService;
     private readonly MongoCollections _collections;
 
-    public OpsController(IAuditService auditService, MongoCollections collections)
+    public OpsController(
+        IAuditService auditService,
+        IAnalyticsService analyticsService,
+        IPoiService poiService,
+        MongoCollections collections)
     {
         _auditService = auditService;
+        _analyticsService = analyticsService;
+        _poiService = poiService;
         _collections = collections;
     }
 
@@ -47,5 +55,17 @@ public sealed class OpsController : ControllerBase
             x.LastSeenAt,
             x.IsRevoked,
         }));
+    }
+
+    [HttpPost("ops/repair/analytics-counters")]
+    public async Task<ActionResult<RepairResponse>> RepairAnalyticsCounters(CancellationToken cancellationToken)
+    {
+        return Ok(await _analyticsService.RepairAnalyticsCountersAsync(cancellationToken));
+    }
+
+    [HttpPost("ops/repair/poi-tags")]
+    public async Task<ActionResult<RepairResponse>> RepairPoiTags(CancellationToken cancellationToken)
+    {
+        return Ok(await _poiService.RepairMissingTagsAsync(cancellationToken));
     }
 }
