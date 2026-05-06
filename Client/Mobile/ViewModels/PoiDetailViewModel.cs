@@ -7,12 +7,13 @@ using System.Text.Json;
 namespace Mobile.ViewModels;
 
 [QueryProperty(nameof(Poi), "Poi")]
+[QueryProperty(nameof(PoiId), "poiId")]
 public partial class PoiDetailViewModel : ObservableObject
 {
     private readonly PoiService _poiService;
+    private readonly NarrationPlaybackService _playbackService;
     private CancellationTokenSource? _cts;
-    private string? _currentNarrationLogId;
-    private DateTime? _narrationStartedAt;
+    private string? _poiId;
 
     [ObservableProperty]
     public partial PoiModel? Poi { get; set; }
@@ -26,9 +27,25 @@ public partial class PoiDetailViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsSpeaking { get; set; }
 
-    public PoiDetailViewModel(PoiService poiService)
+    [ObservableProperty]
+    public partial string NarrationStatus { get; set; } = string.Empty;
+
+    public string? PoiId
+    {
+        get => _poiId;
+        set
+        {
+            if (SetProperty(ref _poiId, value) && !string.IsNullOrWhiteSpace(value))
+            {
+                _ = LoadPoiByIdAsync(value);
+            }
+        }
+    }
+
+    public PoiDetailViewModel(PoiService poiService, NarrationPlaybackService playbackService)
     {
         _poiService = poiService;
+        _playbackService = playbackService;
     }
 
     public List<string> AvailableLanguages { get; } = new()
@@ -70,7 +87,7 @@ public partial class PoiDetailViewModel : ObservableObject
 
         if (IsSpeaking)
         {
-            _cts?.Cancel();
+            _ = _playbackService.StopAsync();
         }
     }
 
@@ -109,12 +126,13 @@ public partial class PoiDetailViewModel : ObservableObject
         Preferences.Default.Set("MyFavorites", JsonSerializer.Serialize(favList));
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = true)]
     public async Task SpeakDescriptionAsync()
     {
         if (IsSpeaking)
         {
-            _cts?.Cancel();
+            await _playbackService.StopAsync();
+            NarrationStatus = "Đang dừng thuyết minh...";
             return;
         }
 
@@ -130,43 +148,27 @@ public partial class PoiDetailViewModel : ObservableObject
             return;
         }
 
-        var play = await _poiService.StartNarrationAsync(Poi.Id, SelectedLanguageCode);
-        if (play == null)
-        {
-            await Shell.Current.DisplayAlert("Lỗi", "Không ghi nhận được lượt nghe thuyết minh.", "OK");
-            return;
-        }
-
-        _currentNarrationLogId = play.LogId;
-        _narrationStartedAt = DateTime.UtcNow;
         _cts = new CancellationTokenSource();
 
         try
         {
             IsSpeaking = true;
+            NarrationStatus = "Đang phát thuyết minh...";
 
-            var locales = await TextToSpeech.Default.GetLocalesAsync();
-            Locale? locale = SelectedLanguage switch
+            var result = await _playbackService.PlayAsync(Poi, SelectedLanguageCode, DisplayDescription, _cts.Token);
+            if (!result.Success)
             {
-                "English" => locales.FirstOrDefault(l => l.Language.StartsWith("en", StringComparison.OrdinalIgnoreCase)),
-                "한국어" => locales.FirstOrDefault(l => l.Language.StartsWith("ko", StringComparison.OrdinalIgnoreCase)),
-                "日本語" => locales.FirstOrDefault(l => l.Language.StartsWith("ja", StringComparison.OrdinalIgnoreCase)),
-                "中文" => locales.FirstOrDefault(l => l.Language.StartsWith("zh", StringComparison.OrdinalIgnoreCase)),
-                _ => locales.FirstOrDefault(l => l.Language.StartsWith("vi", StringComparison.OrdinalIgnoreCase)),
-            };
+                NarrationStatus = result.ErrorMessage;
+                if (!string.Equals(result.ErrorMessage, "Đã dừng thuyết minh.", StringComparison.OrdinalIgnoreCase))
+                {
+                    await Shell.Current.DisplayAlert("Lỗi", result.ErrorMessage, "OK");
+                }
+                return;
+            }
 
-            var options = locale == null ? new SpeechOptions() : new SpeechOptions { Locale = locale };
-            await TextToSpeech.Default.SpeakAsync(DisplayDescription, options, cancelToken: _cts.Token);
-            await FinishCurrentNarrationAsync("Completed");
-        }
-        catch (OperationCanceledException)
-        {
-            await FinishCurrentNarrationAsync("Stopped");
-        }
-        catch (Exception)
-        {
-            await FinishCurrentNarrationAsync("Error", "PLAYBACK_FAILED");
-            await Shell.Current.DisplayAlert("Lỗi", "Không thể phát giọng đọc trên thiết bị này.", "OK");
+            NarrationStatus = result.RateLimited
+                ? "Bạn đang nghe lại trong giới hạn chống spam; lượt này không cộng số."
+                : result.UsedAudioFile ? "Đã phát audio thuyết minh." : "Đã phát TTS thuyết minh.";
         }
         finally
         {
@@ -222,22 +224,6 @@ public partial class PoiDetailViewModel : ObservableObject
         }
     }
 
-    private async Task FinishCurrentNarrationAsync(string status, string errorCode = "")
-    {
-        if (string.IsNullOrWhiteSpace(_currentNarrationLogId))
-        {
-            return;
-        }
-
-        var dwell = _narrationStartedAt.HasValue
-            ? Math.Max(0, (int)Math.Round((DateTime.UtcNow - _narrationStartedAt.Value).TotalSeconds))
-            : 0;
-
-        await _poiService.FinishNarrationAsync(_currentNarrationLogId, status, dwell, errorCode);
-        _currentNarrationLogId = null;
-        _narrationStartedAt = null;
-    }
-
     private string SelectedLanguageCode => AvailableLanguages.IndexOf(SelectedLanguage) switch
     {
         1 => "EN",
@@ -246,4 +232,25 @@ public partial class PoiDetailViewModel : ObservableObject
         4 => "ZH",
         _ => "VI",
     };
+
+    private async Task LoadPoiByIdAsync(string poiId)
+    {
+        try
+        {
+            var poi = await _poiService.GetPoiByIdAsync(poiId);
+            if (poi != null)
+            {
+                Poi = poi;
+            }
+            else
+            {
+                NarrationStatus = "Khong tim thay POI nay.";
+            }
+        }
+        catch (Exception ex)
+        {
+            NarrationStatus = "Khong mo duoc POI tu thong bao.";
+            System.Diagnostics.Debug.WriteLine($"Failed to load POI from notification: {ex.Message}");
+        }
+    }
 }

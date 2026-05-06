@@ -20,7 +20,7 @@
     </ContentPage.Resources>
 
     <Grid>
-        <Grid Margin="0,0,0,90">
+        <Grid Margin="0,0,0,0">
             <RefreshView Command="{Binding GetPoisCommand}" IsRefreshing="{Binding IsBusy}" RefreshColor="{StaticResource Primary}">
                 <ScrollView>
                     <VerticalStackLayout Spacing="25" Padding="15,20,15,20">
@@ -103,13 +103,13 @@
                         <VerticalStackLayout Spacing="15">
                             <Grid ColumnDefinitions="*, Auto">
                             <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center" Margin="0, 10, 0, 5">
-                                <Label FontFamily="MaterialIcons" Text="&#xE3C8;" FontSize="22" TextColor="#FF8A65" VerticalOptions="Center" />
+                                <Label Text="🔥" FontSize="20" VerticalOptions="Center" />
                                 <Label Text="Đang Hot" FontSize="18" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" VerticalOptions="Center" />
                             </HorizontalStackLayout>
                                 <Label Grid.Column="1" Text="Xem tất cả" FontSize="13" TextColor="{StaticResource Primary}" VerticalOptions="Center" FontAttributes="Bold" />
                             </Grid>
 
-                            <CollectionView ItemsSource="{Binding Pois}" ItemsLayout="HorizontalList" HeightRequest="220" SelectionMode="None">
+                            <CollectionView ItemsSource="{Binding Pois}" ItemsLayout="HorizontalList" HeightRequest="250" SelectionMode="None">
                                 <CollectionView.EmptyView>
                                     <Label Text="Chưa có quán đã duyệt để hiển thị." TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" FontSize="13" Margin="0,20,0,0" />
                                 </CollectionView.EmptyView>
@@ -144,12 +144,12 @@
                         <VerticalStackLayout Spacing="15">
                             <Grid ColumnDefinitions="*, Auto">
                                 <HorizontalStackLayout Grid.Column="0" Spacing="10" VerticalOptions="Center" Margin="0, 10, 0, 5">
-                                    <Label FontFamily="MaterialIcons" Text="&#xE55F;" FontSize="22" TextColor="#FF5252" VerticalOptions="Center" />
+                                    <Label Text="📍" FontSize="20" VerticalOptions="Center" />
                                     <Label Text="Gần bạn nhất" FontSize="18" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" VerticalOptions="Center" />
                                 </HorizontalStackLayout>
                             </Grid>
 
-                            <CollectionView ItemsSource="{Binding NearbyPois}" ItemsLayout="HorizontalList" HeightRequest="220" SelectionMode="None">
+                            <CollectionView ItemsSource="{Binding NearbyPois}" ItemsLayout="HorizontalList" HeightRequest="250" SelectionMode="None">
                                 <CollectionView.EmptyView>
                                     <Label Text="Chưa có quán gần bạn trong dữ liệu đã duyệt." TextColor="{AppThemeBinding Light={StaticResource SecondaryTextColorLight}, Dark={StaticResource SecondaryTextColorDark}}" FontSize="13" Margin="0,20,0,0" />
                                 </CollectionView.EmptyView>
@@ -185,7 +185,7 @@
                         <!-- 5. Section 'Gợi ý cho bạn' (Vertical List) -->
                         <VerticalStackLayout Spacing="15" Margin="0,15,0,0">
                             <HorizontalStackLayout Spacing="10" VerticalOptions="Center" Margin="0, 10, 0, 5">
-                                <Label FontFamily="MaterialIcons" Text="&#xE65F;" FontSize="22" TextColor="#FFD54F" VerticalOptions="Center" />
+                                <Label Text="✨" FontSize="20" VerticalOptions="Center" />
                                 <Label Text="Gợi ý cho bạn" FontSize="18" FontAttributes="Bold" TextColor="{AppThemeBinding Light={StaticResource PrimaryTextColorLight}, Dark={StaticResource PrimaryTextColorDark}}" VerticalOptions="Center" />
                             </HorizontalStackLayout>
 
@@ -216,7 +216,9 @@
                                 </CollectionView.ItemTemplate>
                             </CollectionView>
                         </VerticalStackLayout>
-
+                        
+                        <!-- Không gian trống cuối màn hình để tránh bị TabBar che mất -->
+                        <BoxView HeightRequest="120" Color="Transparent" />
                     </VerticalStackLayout>
                 </ScrollView>
             </RefreshView>

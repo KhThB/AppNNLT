@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourGuide FoodTour - Sequence diagrams standalone</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #f7f7fb;
+            --surface: #ffffff;
+            --surface-2: #fffaf5;
+            --text: #1f2937;
+            --muted: #5b6472;
+            --line: #e5e7eb;
+            --primary: #ea580c;
+            --primary-soft: #fff1e8;
+            --accent: #0f766e;
+            --blue: #2563eb;
+            --violet: #7c3aed;
+            --warning: #b45309;
+            --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+        }
+
+        .nav-links a:hover {
+            background: #fff4ed;
+            color: var(--primary);
+        }
+
+        .hero {
+            background: linear-gradient(135deg, #9a3412, #ea580c, #fb923c);
+            color: white;
+            padding: 56px 24px 44px;
+        }
+
+        .hero-inner {
+            max-width: 1120px;
+            margin: 0 auto;
+        }
+
+        .hero h1 {
+            font-size: clamp(34px, 5vw, 56px);
+            line-height: 1.04;
+            margin-bottom: 14px;
+            letter-spacing: -1px;
+        }
+
+        .hero p {
+            max-width: 820px;
+            opacity: 0.94;
+            font-size: 17px;
+        }
+
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 18px;
+        }
+
+        .hero-badge {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            font-size: 12px;
+        }
+
+        main {
+            max-width: 1120px;
+            margin: 0 auto;
+            padding: 28px 24px 60px;
+        }
+
+        section {
+            margin-top: 22px;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            box-shadow: var(--shadow);
+            padding: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 18px;
+            margin-bottom: 16px;
+        }
+
+        .section-num {
+            display: inline-block;
+            margin-bottom: 8px;
+            padding: 5px 9px;
+            border-radius: 999px;
+            background: var(--primary-soft);
+            color: var(--primary);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        h2 {
+            font-size: 28px;
+            line-height: 1.08;
+        }
+
+        .section-header p {
+            color: var(--muted);
+            max-width: 720px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 16px;
+            background: var(--surface);
+        }
+
+        .card h3 {
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        .card p,
+        .card li {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        ul,
+        ol {
+            padding-left: 18px;
+        }
+
+        .mermaid-container {
+            padding: 16px;
+            border-radius: 16px;
+            background: #ffffff;
+            border: 1px solid var(--line);
+            overflow: auto;
+        }
+
+        .legend {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .legend-item {
+            padding: 12px;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #fcfcfe;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .legend-item strong {
+            display: block;
+            margin-bottom: 6px;
+            color: var(--text);
+        }
+
+        .callout {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            font-size: 14px;
+        }
+
+        .note {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            font-size: 14px;
+        }
+
+        .warning {
+            margin-top: 14px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: var(--warning);
+            font-size: 14px;
+        }
+
+        .footer {
+            margin-top: 28px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 980px) {
+            .grid-2,
+            .legend {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="brand">TourGuide sequence diagrams</div>
+        <div class="nav-links">
+            <a href="#architecture">Architecture</a>
+            <a href="#auth">Auth</a>
+            <a href="#draft">Draft</a>
+            <a href="#review">Review</a>
+            <a href="#billing">Billing</a>
+            <a href="#webqr">WebQR</a>
+            <a href="#mobile">Mobile</a>
+            <a href="#dashboard">Dashboard</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-inner">
+            <h1>Sequence diagram cho toàn bộ workflow TourGuide FoodTour</h1>
+            <p>
+                File này tập trung vào luồng chạy hệ thống, các điểm gọi API, các decision node nghiệp vụ và cách các surface WebAdmin, WebQR, Mobile phối hợp với backend.
+            </p>
+            <div class="hero-badges">
+                <div class="hero-badge">Based on repo hiện tại</div>
+                <div class="hero-badge">Mermaid standalone</div>
+                <div class="hero-badge">Dùng tốt để review với team kỹ thuật và BA</div>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <section id="architecture">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 00</div>
+                    <h2>Kiến trúc ở mức hệ thống</h2>
+                    <p>Bốn bề mặt người dùng cùng đổ vào một API trung tâm. Những tích hợp ngoài hiện diện trong repo là PayOS, translation providers và image storage.</p>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><strong>Merchant Portal</strong>Tạo và quản trị POI, billing, submit review.</div>
+                <div class="legend-item"><strong>Admin Portal</strong>Duyệt nội dung, theo dõi analytics, online devices, ops repair.</div>
+                <div class="legend-item"><strong>WebQR</strong>Ghi nhận quét, phát narration, chỉ đường tại chỗ.</div>
+                <div class="legend-item"><strong>Mobile App</strong>Nearby, QR scanner, background geofence, offline queue.</div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+graph TB
+    Merchant["Merchant Portal"]
+    Admin["Admin Portal"]
+    Visitor["WebQR"]
+    Mobile["MAUI Mobile App"]
+
+    API["TourGuide.API"]
+    Mongo["MongoDB"]
+    PayOS["PayOS"]
+    Translate["Google/MyMemory Translation"]
+    Storage["Cloudinary image storage"]
+
+    Merchant --> API
+    Admin --> API
+    Visitor --> API
+    Mobile --> API
+    API --> Mongo
+    API --> PayOS
+    API --> Translate
+    API --> Storage
+                </pre>
+            </div>
+        </section>
+
+        <section id="auth">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 01</div>
+                    <h2>Merchant onboarding và session lifecycle</h2>
+                    <p>Session không chỉ là JWT phát ra rồi thôi; backend còn kiểm tra sessionId còn active ở mỗi request xác thực.</p>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor Merchant
+    participant Portal as Merchant Portal
+    participant API as AuthController/AuthService
+    participant Mongo as MongoDB
+    participant Audit as AuditService
+
+    Merchant->>Portal: Nhập họ tên, phone, email, password
+    Portal->>API: POST /api/auth/merchant/register
+    API->>Mongo: Check phone exists?
+    alt Phone đã tồn tại
+        API-->>Portal: 400 duplicate merchant
+        Portal-->>Merchant: Báo lỗi tạo tài khoản
+    else Phone hợp lệ
+        API->>Mongo: Insert User(role=Merchant)
+        API->>Mongo: Insert UserSession(sessionId)
+        API->>Audit: Write MERCHANT_REGISTERED
+        API-->>Portal: token + user + sessionId
+        Portal->>Portal: Lưu authToken vào local storage
+        Portal-->>Merchant: Redirect sang màn tạo POI
+    end
+
+    Merchant->>Portal: Mở lại portal sau đó
+    Portal->>API: GET /api/auth/me với Bearer token
+    API->>Mongo: Read UserSession by sessionId
+    alt Session revoked/expired
+        API-->>Portal: Unauthorized
+        Portal->>Portal: Xóa token local
+    else Session active
+        API->>Mongo: Update LastSeenAt cho session
+        API-->>Portal: SessionUserResponse
+        Portal-->>Merchant: Vào dashboard
+    end
+                </pre>
+            </div>
+
+            <div class="note">
+                Điểm hay của flow này là logout không chỉ xóa token client-side. Nó revoke luôn `UserSession`, nên JWT cũ cũng mất hiệu lực ở tầng server.
+            </div>
+        </section>
+
+        <section id="draft">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 02</div>
+                    <h2>Tạo draft POI, translation preview và moderation</h2>
+                    <p>Đây là luồng tạo nội dung thực sự của merchant. Nó gộp UI biên tập, translation preview, moderation quyết định và lưu xuống Mongo.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Điểm nhấn nghiệp vụ</h3>
+                    <ul>
+                        <li>Merchant luôn tạo POI mới ở package Basic.</li>
+                        <li>Translation preview chạy sớm ở UI để merchant chỉnh tay nếu cần.</li>
+                        <li>Backend tiếp tục refresh translation cache một lần nữa khi create/update thật.</li>
+                        <li>Moderation có thể trả `Rejected`, `Approved` hoặc `PendingManual`.</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Ràng buộc dữ liệu</h3>
+                    <ul>
+                        <li>Radius effective lấy từ package: Basic 50m, Premium 120m, Boost 200m.</li>
+                        <li>Tags nếu rỗng sẽ được suy luận từ tên quán + source description.</li>
+                        <li>Merchant update một POI đã review sẽ làm POI quay lại trạng thái draft.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor Merchant
+    participant Portal as Merchant Register/Manage UI
+    participant Translation as TranslationController/Service
+    participant API as POIController/PoiService
+    participant Moderation as ModerationService
+    participant Mongo as MongoDB
+    participant Cache as TranslationCache
+
+    Merchant->>Portal: Nhập source description
+    Portal->>Translation: POST /api/translation/preview
+    alt Translation provider configured
+        Translation-->>Portal: Ready translations EN/KO/JA/ZH
+    else Provider missing/error
+        Translation-->>Portal: PendingManual + error message
+    end
+
+    Merchant->>Portal: Chỉnh tay translations và vị trí
+    Merchant->>Portal: Bấm Tạo draft
+    Portal->>API: POST /api/poi
+    API->>Moderation: Evaluate(name + source + merchant note)
+    Moderation-->>API: Approved / Rejected / PendingManual
+    API->>Mongo: Insert POI(Status=Draft, Package=Basic)
+    API->>API: Refresh translations for persisted POI
+    API->>Cache: Upsert translation cache by language + contentVersion
+    API->>Mongo: Update POI TranslationStatus
+    API-->>Portal: PoiListItemResponse
+    Portal-->>Merchant: Báo tạo draft thành công
+                </pre>
+            </div>
+        </section>
+
+        <section id="review">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 03</div>
+                    <h2>Submit và review bằng snapshot diff</h2>
+                    <p>Luồng review của admin khá xịn: hệ thống không chỉ hiển thị POI mới nhất, mà còn dựng bảng thay đổi so với version approved gần nhất.</p>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor Merchant
+    participant MerchantUI as Merchant Portal
+    participant API as POIController/PoiService
+    participant Mongo as MongoDB
+    actor Admin
+    participant AdminUI as Admin Approval UI
+    participant Rules as BusinessRules
+
+    Merchant->>MerchantUI: Bấm Gửi duyệt
+    MerchantUI->>API: POST /api/poi/{id}/submit
+    API->>Mongo: Update POI Status=Submitted
+    API-->>MerchantUI: Submitted OK
+
+    Admin->>AdminUI: Mở màn POI chờ duyệt
+    AdminUI->>API: GET /api/poi/submitted-with-changes
+    API->>Mongo: Load Submitted POIs
+    API->>Mongo: Load latest PoiReviewSnapshot theo poiId
+    API->>Rules: BuildPoiApprovalChanges(snapshot, poi)
+    API-->>AdminUI: Item + change list + IsNewPoi
+
+    Admin->>AdminUI: Approve hoặc Reject
+    AdminUI->>API: POST /api/poi/{id}/review
+    API->>Rules: ApplyReview(approve/reject)
+    alt Approve
+        API->>Mongo: Replace POI(Status=Approved)
+        API->>Rules: CreateApprovedSnapshot(poi)
+        API->>Mongo: Insert snapshot mới
+    else Reject
+        API->>Mongo: Replace POI(Status=Rejected, reason)
+    end
+    API-->>AdminUI: POI đã cập nhật
+                </pre>
+            </div>
+
+            <div class="callout">
+                Snapshot review là mấu chốt giúp admin thấy “merchant vừa sửa gì”, thay vì phải đọc lại toàn bộ hồ sơ bằng mắt.
+            </div>
+        </section>
+
+        <section id="billing">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 04</div>
+                    <h2>Checkout package và kích hoạt sau webhook</h2>
+                    <p>Package không đổi ngay lúc bấm mua. Trạng thái POI chỉ được nâng sau khi webhook PayOS xác nhận thanh toán hợp lệ.</p>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor Merchant
+    participant Portal as Merchant Portal
+    participant Billing as BillingController/BillingService
+    participant Mongo as MongoDB
+    participant PayOS as PayOS Gateway
+
+    Merchant->>Portal: Chọn Premium hoặc Boost
+    Portal->>Billing: POST /api/billing/package/checkout
+    Billing->>Mongo: Load POI
+    alt Package cùng loại còn hiệu lực
+        Billing-->>Portal: 400 package already active
+    else Hợp lệ
+        Billing->>Mongo: Insert BillingRecord(PendingPayment)
+        Billing->>PayOS: Create payment link
+        PayOS-->>Billing: checkoutUrl + paymentLinkId + orderCode
+        Billing->>Mongo: Update BillingRecord checkout fields
+        Billing-->>Portal: CheckoutUrl
+        Portal-->>Merchant: Mở tab thanh toán
+    end
+
+    PayOS->>Billing: POST /api/billing/webhook/payos
+    Billing->>PayOS: Verify webhook signature
+    alt Signature invalid
+        Billing-->>PayOS: ignore / reject
+    else Success
+        Billing->>Mongo: Mark BillingRecord Active + PaidAt
+        alt PackageName = Boost
+            Billing->>Mongo: Set POI BoostPriority/BoostExpiresAt/Radius=200
+        else PackageName = Premium
+            Billing->>Mongo: Set POI SubscriptionPackage=Premium, SubscriptionExpiry, Radius=120
+        end
+        Billing-->>PayOS: received=true
+    end
+                </pre>
+            </div>
+
+            <div class="warning">
+                Premium và Boost có hai rule chống mua trùng riêng: Premium đang active thì không mua lại Premium, Boost còn hạn thì không mua thêm Boost.
+            </div>
+        </section>
+
+        <section id="webqr">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 05</div>
+                    <h2>Visitor WebQR: scan counted, narration replay-safe</h2>
+                    <p>WebQR tự động tạo visitor/session identity trong browser và chủ động ghi nhận scan ngay khi trang detail được mở.</p>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor Visitor
+    participant Browser as WebQR page
+    participant API as API (POI + Analytics)
+    participant Mongo as MongoDB
+
+    Visitor->>Browser: Mở QR URL hoặc /?id=poiId
+    Browser->>Browser: Redirect sang /poi/{id}
+    Browser->>API: GET /api/poi/details/{id}
+    API->>Mongo: Load approved POI + public localized content
+    API-->>Browser: Poi detail payload
+
+    Browser->>Browser: ensure visitorId cookie + sessionId storage
+    Browser->>API: POST /api/qr/scan(trigger=WebQR)
+    API->>Mongo: Find last counted QR by poi + visitor
+    alt Ngoài cooldown 6 giờ
+        API->>Mongo: Insert counted QrScanLog
+        API->>Mongo: Increment POI.CountedQrScanCount
+        API-->>Browser: Counted=true
+    else Trong cooldown
+        API->>Mongo: Insert replay QrScanLog
+        API->>Mongo: Increment POI.ReplayQrScanCount
+        API-->>Browser: InCooldown=true + message
+    end
+
+    Visitor->>Browser: Chọn ngôn ngữ và bấm nghe
+    Browser->>API: POST /api/narration/play
+    API->>Mongo: Count recent counted plays in 1 minute
+    alt Dưới ngưỡng
+        API->>Mongo: Insert NarrationLog Counted=true
+        API->>Mongo: Increment POI.CountedTtsPlayCount
+        API-->>Browser: logId + RateLimited=false
+    else Quá ngưỡng
+        API->>Mongo: Insert NarrationLog Counted=false, Replay
+        API->>Mongo: Increment POI.ReplayTtsPlayCount
+        API-->>Browser: logId + RateLimited=true
+    end
+
+    Browser->>Browser: Play audioUrl nếu có, fallback speech synthesis nếu không
+    Browser->>API: POST /api/narration/finish(status, dwellTime)
+    API->>Mongo: Update NarrationLog end state
+                </pre>
+            </div>
+        </section>
+
+        <section id="mobile">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 06</div>
+                    <h2>Mobile: nearby, geofence, offline queue</h2>
+                    <p>Luồng mobile khác WebQR ở chỗ nó phải chịu được điều kiện thực địa: chuyển mạng, GPS dao động và người dùng đang di chuyển.</p>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor User
+    participant App as MAUI App
+    participant PoiSvc as PoiService
+    participant Track as GeofenceMonitorService
+    participant API as TourGuide.API
+    participant SQLite as OfflineStore
+
+    User->>App: Mở app / Home
+    App->>PoiSvc: GetPoisAsync()
+    PoiSvc->>API: GET /api/poi/approved
+    alt API reachable
+        API-->>PoiSvc: Approved POIs
+        PoiSvc->>SQLite: SavePoisAsync
+        PoiSvc->>PoiSvc: FlushPendingEventsAsync
+        PoiSvc-->>App: POI list
+    else API fail
+        PoiSvc->>SQLite: GetApprovedPoisAsync
+        PoiSvc-->>App: Cached POI list
+    end
+
+    User->>App: Bật tracking/geofence
+    App->>Track: StartAsync
+    loop mỗi chu kỳ
+        Track->>PoiSvc: SendPingAsync(location)
+        alt Ping success
+            PoiSvc->>API: POST /api/tracking/ping
+        else Ping fail
+            PoiSvc->>SQLite: Enqueue pending tracking_ping
+        end
+        Track->>PoiSvc: Refresh POIs nếu quá 5 phút
+        Track->>Track: Tính khoảng cách tới POI và radius effective
+        alt Enter geofence và chưa notify 30 phút
+            Track-->>App: onPoiEntered(poi)
+        end
+    end
+
+    User->>App: Quét QR hoặc mở detail
+    App->>PoiSvc: RecordQrScan / StartNarration / FinishNarration
+    alt Request fail
+        PoiSvc->>SQLite: Enqueue pending event
+    end
+
+    User->>App: Có mạng trở lại
+    App->>PoiSvc: FlushPendingEventsAsync
+    PoiSvc->>API: replay từng pending payload
+    API-->>PoiSvc: 200 OK
+    PoiSvc->>SQLite: Delete pending event
+                </pre>
+            </div>
+
+            <div class="note">
+                Đây là chỗ mobile app có “độ sống” riêng: cache POI xuống SQLite, queue sự kiện thất bại và flush lại sau, chứ không phụ thuộc tuyệt đối vào online realtime.
+            </div>
+        </section>
+
+        <section id="dashboard">
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Chapter 07</div>
+                    <h2>Admin dashboard aggregation và presence</h2>
+                    <p>Dashboard tổng hợp vừa dùng dữ liệu bền vững từ Mongo, vừa dùng presence cache trong memory để phản ánh online devices gần realtime.</p>
+                </div>
+            </div>
+
+            <div class="mermaid-container">
+                <pre class="mermaid">
+sequenceDiagram
+    actor Admin
+    participant Portal as Admin Dashboard
+    participant API as AnalyticsService + PresenceTracker
+    participant Mongo as MongoDB
+
+    Admin->>Portal: Mở /admin/dashboard
+    par Overview load
+        Portal->>API: GET /api/analytics/admin/overview
+        API->>Mongo: Count owners, POIs, pending, approved
+        API->>Mongo: Count counted QR logs và counted narration logs
+        API->>Mongo: Read billing active + audit logs + trend data
+        API-->>Portal: OverviewResponse
+    and Heatmap load
+        Portal->>API: GET /api/analytics/admin/heatmap?hours=4
+        API->>Mongo: Load TrackingData in time window
+        API-->>Portal: Heatmap points
+    and POI overlay load
+        Portal->>API: GET /api/poi/map-summary
+        API->>Mongo: Load POIs
+        API-->>Portal: POI points
+    and Presence load
+        Portal->>API: GET /api/tracking/online-devices
+        API->>API: PresenceTracker.GetActive(threshold)
+        API-->>Portal: Online devices
+    end
+
+    loop every 5 seconds
+        Portal->>API: GET /api/tracking/online-devices
+        API->>API: Refresh active list by LastSeenAt
+        API-->>Portal: Latest online devices
+        Portal->>Portal: Update online markers on map
+    end
+                </pre>
+            </div>
+
+            <div class="callout">
+                PresenceTracker là cache memory tại API instance, còn heatmap lại đến từ Mongo tracking history. Hai lớp này bổ trợ nhau: một lớp “ai đang online”, một lớp “ai đã di chuyển ở đâu”.
+            </div>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <div>
+                    <div class="section-num">Appendix</div>
+                    <h2>Checklist khi review cùng team</h2>
+                    <p>Một số câu hỏi gợi ý nếu bạn dùng file này để review scope với PM, BA, backend và frontend.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Câu hỏi sản phẩm</h3>
+                    <ul>
+                        <li>Có muốn mở rộng merchant flow cho upload ảnh ngay trên form tạo/sửa không?</li>
+                        <li>Có cần workflow xuất bản audio file thay vì chủ yếu dựa vào TTS fallback không?</li>
+                        <li>Có giữ anti-spam hiện tại cho narration hay cần rule tinh hơn theo user/session?</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>Câu hỏi kỹ thuật</h3>
+                    <ul>
+                        <li>Nếu scale nhiều API instances, presence cache in-memory có cần external store không?</li>
+                        <li>Translation cache có cần invalidation strategy sâu hơn khi source text đổi nhiều lần nhanh?</li>
+                        <li>Billing webhook có cần idempotency logs rõ hơn ở tầng riêng không?</li>
+                    </ul>
+                </div>
+            </div>
+
+            <p class="footer">
+                Tài liệu sequence này đi kèm với file PRD chi tiết: `docs/tourguide-prd-chi-tiet.html`.
+            </p>
+        </section>
+    </main>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: "base",
+            themeVariables: {
+                background: "#ffffff",
+                primaryColor: "#fff7ed",
+                primaryTextColor: "#1f2937",
+                primaryBorderColor: "#ea580c",
+                lineColor: "#cbd5e1",
+                secondaryColor: "#eff6ff",
+                tertiaryColor: "#f8fafc",
+                actorBorder: "#ea580c",
+                actorBkg: "#fff7ed",
+                actorTextColor: "#7c2d12"
+            },
+            sequence: {
+                diagramMarginX: 20,
+                diagramMarginY: 18,
+                actorMargin: 40,
+                width: 200,
+                height: 60
+            }
+        });
+    </script>
+</body>
+</html>

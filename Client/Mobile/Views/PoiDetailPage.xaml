@@ -147,6 +147,11 @@
                             </Grid>
                         </Border>
 
+                        <Label Text="{Binding NarrationStatus}"
+                               FontSize="13"
+                               TextColor="#7B1FA2"
+                               LineBreakMode="WordWrap" />
+
                         <!-- Nội dung bài viết mô tả (WordWrap) -->
                         <Label Text="{Binding DisplayDescription}" 
                                FontSize="16" 

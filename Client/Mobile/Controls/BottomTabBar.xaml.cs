@@ -44,10 +44,7 @@ public partial class BottomTabBar : ContentView
         }
     }
 
-    private async void OnTourClicked(object? sender, TappedEventArgs e)
-    {
-        await AnimateIconAndNavigate((View?)sender, "//TourPage");
-    }
+
 
     private async void OnProfileClicked(object? sender, TappedEventArgs e)
     {

@@ -1,0 +1,207 @@
+@page "/merchant/billing"
+@layout TourGuide.WebAdmin.Components.Layout.MerchantLayout
+@rendermode InteractiveServer
+@using TourGuide.WebAdmin.Components.Shared
+@using TourGuide.WebAdmin.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PortalGuard RequiredRole="Merchant" RedirectTo="/merchant/login" OnAuthorized="LoadAfterAuthAsync">
+    <div class="d-flex justify-space-between align-center mb-6">
+        <div>
+            <MudText Typo="Typo.h4">Gói dịch vụ & hóa đơn</MudText>
+            <MudText Typo="Typo.body2">Theo dõi gói hiện tại của từng POI. Thanh toán thật sẽ được bật ở vòng sau.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ReloadAsync">Tải lại</MudButton>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudAlert Severity="@(_billingConfig.IsConfigured ? Severity.Info : Severity.Warning)" Dense="true" Class="mb-4">
+            Nhà cung cấp: @_billingConfig.Provider. Thanh toán đang @(_billingConfig.IsConfigured ? "cấu hình sẵn nhưng chưa bật UI mua gói trong vòng này." : "chưa cấu hình; UI mua gói đang khóa.").
+        </MudAlert>
+
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Bảng gói</MudText>
+                    <MudTable Items="_packageRows" Dense="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Gói</MudTh>
+                            <MudTh>Radius</MudTh>
+                            <MudTh>Giá/tháng</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Name</MudTd>
+                            <MudTd>@context.Radius m</MudTd>
+                            <MudTd>@context.Price</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Trạng thái cấu hình</MudText>
+                    @if (_billingConfig.MissingFields.Count == 0)
+                    {
+                        <MudText Typo="Typo.body2">Không thiếu field cấu hình.</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="string" Dense="true">
+                            @foreach (var field in _billingConfig.MissingFields)
+                            {
+                                <MudListItem>@field</MudListItem>
+                            }
+                        </MudList>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Class="pa-4 glass-panel mb-4" Style="border-radius: 14px;">
+            <MudText Typo="Typo.h6" Class="mb-3">POI và gói hiện tại</MudText>
+            <MudTable Items="_pois" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>POI</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Gói</MudTh>
+                    <MudTh>Radius</MudTh>
+                    <MudTh>QR/TTS</MudTh>
+                    <MudTh>Hành động</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Name</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>@context.SubscriptionPackage</MudTd>
+                    <MudTd>@context.Radius.ToString("N0") m</MudTd>
+                    <MudTd>@context.CountedQrScanCount / @context.CountedTtsPlayCount</MudTd>
+                    <MudTd>
+                        <div class="d-flex gap-2">
+                            <MudButton Disabled="true" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small">Mua Premium</MudButton>
+                            <MudButton Disabled="true" Variant="Variant.Outlined" Color="Color.Warning" Size="Size.Small">Mua Boost</MudButton>
+                        </div>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+            <MudText Typo="Typo.caption" Class="mt-3 d-block">Thanh toán sẽ được bật sau khi chốt cổng thanh toán production.</MudText>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+            <MudText Typo="Typo.h6" Class="mb-3">Lịch sử billing</MudText>
+            <MudTable Items="_billingRecords" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>POI</MudTh>
+                    <MudTh>Gói</MudTh>
+                    <MudTh>Số tiền</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Hiệu lực đến</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@ShortId(context.PoiId)</MudTd>
+                    <MudTd>@context.PackageName</MudTd>
+                    <MudTd>@context.Amount.ToString("N0") @context.Currency</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>@FormatDate(context.EffectiveTo)</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</PortalGuard>
+
+@code {
+    private bool _loading = true;
+    private string _ownerId = string.Empty;
+    private BillingConfig _billingConfig = new();
+    private List<PoiItem> _pois = new();
+    private List<BillingRecordItem> _billingRecords = new();
+    private readonly List<PackageRow> _packageRows = new()
+    {
+        new("Basic", "50", "0 VND"),
+        new("Premium", "120", "Theo cấu hình"),
+        new("Boost", "200", "Theo cấu hình"),
+    };
+
+    private async Task LoadAfterAuthAsync(SessionUser user)
+    {
+        _ownerId = user.Id;
+        await ReloadAsync();
+        StateHasChanged();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_ownerId))
+        {
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            _billingConfig = await Http.GetFromJsonAsync<BillingConfig>("api/billing/config-status") ?? new();
+            _pois = await Http.GetFromJsonAsync<List<PoiItem>>($"api/poi/owner/{_ownerId}") ?? new();
+            _billingRecords = await Http.GetFromJsonAsync<List<BillingRecordItem>>($"api/billing/owner/{_ownerId}") ?? new();
+            _packageRows[1] = new("Premium", "120", $"{_billingConfig.PremiumMonthlyAmount:N0} VND / {_billingConfig.PremiumDurationDays} ngày");
+            _packageRows[2] = new("Boost", "200", $"{_billingConfig.BoostMonthlyAmount:N0} VND / {_billingConfig.BoostDurationDays} ngày");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Merchant billing load failed: {ex}");
+            Snackbar.Add("Không tải được dữ liệu billing.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string ShortId(string value) => string.IsNullOrWhiteSpace(value)
+        ? "-"
+        : value.Length <= 10 ? value : value[..10];
+
+    private static string FormatDate(DateTime? value) => value.HasValue
+        ? value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+        : "-";
+
+    private sealed record PackageRow(string Name, string Radius, string Price);
+
+    private sealed class BillingConfig
+    {
+        public string Provider { get; set; } = string.Empty;
+        public bool IsConfigured { get; set; }
+        public List<string> MissingFields { get; set; } = new();
+        public decimal PremiumMonthlyAmount { get; set; }
+        public decimal BoostMonthlyAmount { get; set; }
+        public int PremiumDurationDays { get; set; }
+        public int BoostDurationDays { get; set; }
+    }
+
+    private sealed class PoiItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string SubscriptionPackage { get; set; } = string.Empty;
+        public double Radius { get; set; }
+        public int CountedQrScanCount { get; set; }
+        public int CountedTtsPlayCount { get; set; }
+    }
+
+    private sealed class BillingRecordItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string PoiId { get; set; } = string.Empty;
+        public string PackageName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public string Currency { get; set; } = "VND";
+        public string Status { get; set; } = string.Empty;
+        public DateTime? EffectiveTo { get; set; }
+    }
+}

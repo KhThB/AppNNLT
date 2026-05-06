@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TourGuide FoodTour - PRD chi tiet theo repo</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #071018;
+            --surface: #0f1722;
+            --surface-2: #141d2a;
+            --surface-3: #1b2636;
+            --line: rgba(255, 255, 255, 0.08);
+            --text: #e5edf5;
+            --muted: #8aa0b5;
+            --primary: #fb923c;
+            --primary-2: #fdba74;
+            --success: #34d399;
+            --warning: #fbbf24;
+            --danger: #f87171;
+            --info: #60a5fa;
+            --violet: #a78bfa;
+            --shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(251, 146, 60, 0.14), transparent 32%),
+                radial-gradient(circle at 85% 15%, rgba(96, 165, 250, 0.10), transparent 22%),
+                var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+            padding: 16px 28px;
+            background: rgba(7, 16, 24, 0.86);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.3px;
+        }
+
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            padding: 7px 12px;
+            border-radius: 999px;
+            color: var(--muted);
+            font-size: 12px;
+            border: 1px solid transparent;
+            transition: 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+            border-color: var(--line);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .hero {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 72px 24px 40px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(251, 146, 60, 0.28);
+            color: var(--primary-2);
+            border-radius: 999px;
+            padding: 8px 14px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+        }
+
+        .eyebrow::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        h1 {
+            font-size: clamp(36px, 6vw, 68px);
+            line-height: 1.02;
+            letter-spacing: -1px;
+            margin-bottom: 18px;
+            max-width: 980px;
+        }
+
+        .hero p {
+            color: var(--muted);
+            max-width: 920px;
+            font-size: 17px;
+        }
+
+        .hero-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 22px;
+        }
+
+        .badge {
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--line);
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        main {
+            max-width: 1180px;
+            margin: 0 auto;
+            padding: 0 24px 64px;
+        }
+
+        section {
+            margin-top: 26px;
+            padding: 28px;
+            background: rgba(15, 23, 34, 0.85);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: end;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .section-header h2 {
+            font-size: 28px;
+            line-height: 1.08;
+        }
+
+        .section-header p {
+            color: var(--muted);
+            max-width: 720px;
+        }
+
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .card {
+            background: var(--surface-2);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 18px;
+        }
+
+        .card h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        .card p,
+        .card li {
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .mini-pill {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(251, 146, 60, 0.12);
+            color: var(--primary-2);
+            font-size: 11px;
+            margin-bottom: 10px;
+            border: 1px solid rgba(251, 146, 60, 0.16);
+        }
+
+        .activity-card {
+            background: linear-gradient(180deg, rgba(27, 38, 54, 0.98), rgba(15, 23, 34, 0.98));
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            padding: 20px;
+        }
+
+        .activity-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+
+        .activity-head h3 {
+            font-size: 21px;
+            margin-bottom: 4px;
+        }
+
+        .activity-id {
+            white-space: nowrap;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(96, 165, 250, 0.14);
+            color: var(--info);
+            font-size: 12px;
+            border: 1px solid rgba(96, 165, 250, 0.18);
+        }
+
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 8px 0 14px;
+        }
+
+        .meta-row span {
+            font-size: 12px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--line);
+            color: var(--muted);
+        }
+
+        .activity-columns {
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            gap: 16px;
+        }
+
+        .activity-block {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--line);
+            border-radius: 14px;
+            padding: 14px;
+        }
+
+        .activity-block h4 {
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: var(--text);
+        }
+
+        ol,
+        ul {
+            padding-left: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 14px;
+            border: 1px solid var(--line);
+            background: var(--surface-2);
+        }
+
+        th,
+        td {
+            padding: 12px 14px;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid var(--line);
+            font-size: 14px;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text);
+        }
+
+        tr:last-child td {
+            border-bottom: 0;
+        }
+
+        .tone-success { color: var(--success); }
+        .tone-warning { color: var(--warning); }
+        .tone-danger { color: var(--danger); }
+        .tone-info { color: var(--info); }
+        .tone-violet { color: var(--violet); }
+
+        .note {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(96, 165, 250, 0.08);
+            border: 1px solid rgba(96, 165, 250, 0.16);
+            color: #cfe3fb;
+            font-size: 14px;
+        }
+
+        .mermaid-wrap {
+            margin-top: 16px;
+            padding: 14px;
+            background: #ffffff;
+            border-radius: 16px;
+            overflow: auto;
+        }
+
+        .foot {
+            margin-top: 28px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        @media (max-width: 980px) {
+            .grid-2,
+            .grid-3,
+            .grid-4,
+            .activity-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="brand">TourGuide PRD theo codebase hiện tại</div>
+        <div class="nav-links">
+            <a href="#overview">Tổng quan</a>
+            <a href="#actors">Vai trò</a>
+            <a href="#merchant">Merchant</a>
+            <a href="#admin">Admin</a>
+            <a href="#visitor">Visitor</a>
+            <a href="#mobile">Mobile</a>
+            <a href="#rules">Luật nghiệp vụ</a>
+            <a href="#gaps">Khoảng trống</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="eyebrow">Repo-derived product document</div>
+        <h1>PRD chi tiết cho hệ thống TourGuide FoodTour, dựng trực tiếp từ repo `TourGuide.API + WebAdmin + WebQR + Mobile`</h1>
+        <p>
+            Tài liệu này mô tả sản phẩm theo đúng phạm vi đang hiện diện trong code: quản lý POI cho chủ quán, duyệt nội dung bởi admin, WebQR cho khách quét mã,
+            ứng dụng mobile để khám phá gần bạn, nghe thuyết minh, gửi tracking và làm việc được khi mạng chập chờn.
+        </p>
+        <div class="hero-badges">
+            <div class="badge">Nguồn suy ra: code hiện tại trong repo</div>
+            <div class="badge">Workflow trọng tâm: POI lifecycle, analytics, billing, tracking</div>
+            <div class="badge">Ngày tổng hợp: 2026-05-06</div>
+            <div class="badge">Đầu ra bổ sung: file sequence diagram standalone</div>
+        </div>
+    </header>
+
+    <main>
+        <section id="overview">
+            <div class="section-header">
+                <div>
+                    <h2>Bức tranh tổng quan</h2>
+                    <p>Đây là một nền tảng food tour nhiều kênh, nơi merchant tạo và quản trị điểm đến, admin kiểm duyệt và theo dõi vận hành, còn visitor có thể tiếp cận nội dung qua QR hoặc app mobile.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-4">
+                <div class="card">
+                    <div class="mini-pill">Surface</div>
+                    <h3>WebAdmin</h3>
+                    <p>Cổng cho admin và merchant: đăng nhập, dashboard, tạo POI, sửa nội dung, mua gói, duyệt POI, xem audit và heatmap.</p>
+                </div>
+                <div class="card">
+                    <div class="mini-pill">Surface</div>
+                    <h3>WebQR</h3>
+                    <p>Trang browser-first cho khách quét mã: tự ghi nhận QR scan, hiển thị nội dung đa ngôn ngữ, phát audio hoặc speech synthesis, chỉ đường.</p>
+                </div>
+                <div class="card">
+                    <div class="mini-pill">Surface</div>
+                    <h3>Mobile MAUI</h3>
+                    <p>App khám phá danh sách POI, bản đồ, nearby, quét QR, nghe thuyết minh, geofence và queue sự kiện offline.</p>
+                </div>
+                <div class="card">
+                    <div class="mini-pill">Backend</div>
+                    <h3>ASP.NET + MongoDB</h3>
+                    <p>API chịu trách nhiệm auth JWT theo session, workflow POI, translation preview/cache, analytics, billing PayOS và tracking presence.</p>
+                </div>
+            </div>
+
+            <div class="note">
+                Tư duy scope trong tài liệu này là “current product as built”. Nghĩa là chỉ ghi những gì đang có hoặc được suy ra chắc chắn từ code; không thêm các ý tưởng chưa thấy triển khai.
+            </div>
+        </section>
+
+        <section id="actors">
+            <div class="section-header">
+                <div>
+                    <h2>Vai trò, mục tiêu và thực thể chính</h2>
+                    <p>Phần này gom lại các actor và entity thực sự điều khiển behavior của hệ thống.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Nhóm người dùng</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Actor</th>
+                                <th>Mục tiêu</th>
+                                <th>Kênh sử dụng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Admin</td>
+                                <td>Duyệt POI, can thiệp nội dung, xem analytics tổng, theo dõi thiết bị online, sửa dữ liệu hệ thống.</td>
+                                <td>WebAdmin</td>
+                            </tr>
+                            <tr>
+                                <td>Merchant</td>
+                                <td>Tạo POI nháp, biên tập nội dung, nhận bản dịch, submit duyệt, theo dõi hiệu quả, mua Premium/Boost.</td>
+                                <td>WebAdmin Merchant Portal</td>
+                            </tr>
+                            <tr>
+                                <td>Visitor Web</td>
+                                <td>Quét QR, đọc nội dung, nghe narration, mở bản đồ chỉ đường.</td>
+                                <td>WebQR</td>
+                            </tr>
+                            <tr>
+                                <td>Visitor Mobile</td>
+                                <td>Tìm POI gần mình, quét QR, nghe audio/TTS, được kích hoạt bởi geofence, dùng được khi mất mạng tạm thời.</td>
+                                <td>MAUI mobile app</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <h3>Entity lõi</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Entity</th>
+                                <th>Ý nghĩa nghiệp vụ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>POI</td>
+                                <td>Điểm đến trung tâm: tên quán, mô tả nguồn, bản dịch, audio URL, vị trí, radius, gói, counters, trạng thái duyệt.</td>
+                            </tr>
+                            <tr>
+                                <td>User + UserSession</td>
+                                <td>Định danh tài khoản và phiên JWT còn hiệu lực; logout sẽ revoke session.</td>
+                            </tr>
+                            <tr>
+                                <td>PoiReviewSnapshot</td>
+                                <td>Bản chụp phiên bản đã approved gần nhất, dùng để diff với bản submitted mới.</td>
+                            </tr>
+                            <tr>
+                                <td>QrScanLog / NarrationLog</td>
+                                <td>Lưu counted vs replay, cooldown window, dwell time và nguồn phát.</td>
+                            </tr>
+                            <tr>
+                                <td>BillingRecord</td>
+                                <td>Phiên thanh toán PayOS, số tiền, package, hiệu lực và webhook activation.</td>
+                            </tr>
+                            <tr>
+                                <td>TrackingData + PresenceTracker</td>
+                                <td>Dữ liệu vị trí để tạo heatmap, online count và danh sách thiết bị đang hoạt động.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="mermaid-wrap">
+                <pre class="mermaid">
+flowchart LR
+    Merchant["Merchant"] --> WebAdmin["Merchant Portal"]
+    Admin["Admin"] --> AdminPortal["Admin Portal"]
+    Visitor["Visitor Browser"] --> WebQR["WebQR"]
+    Mobile["Mobile App"] --> MobileFlows["Nearby / QR / Geofence"]
+
+    WebAdmin --> API["TourGuide.API"]
+    AdminPortal --> API
+    WebQR --> API
+    MobileFlows --> API
+
+    API --> Mongo["MongoDB"]
+    API --> PayOS["PayOS"]
+    API --> Translator["Translation providers"]
+    API --> Cloudinary["Image storage service"]
+                </pre>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-header">
+                <div>
+                    <h2>Luồng trạng thái cốt lõi</h2>
+                    <p>Workflow thực tế của POI được xác định bởi `Status`, `ApprovalStatus`, `ModerationStatus`, `TranslationStatus` và package đang hiệu lực.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>POI lifecycle</h3>
+                    <div class="mermaid-wrap">
+                        <pre class="mermaid">
+flowchart LR
+    Draft["Draft"] --> Submitted["Submitted"]
+    Submitted --> Approved["Approved"]
+    Submitted --> Rejected["Rejected"]
+    Approved --> DraftEdit["Merchant/Admin edit"]
+    DraftEdit --> Draft
+    Approved --> Archived["Archived"]
+    Rejected --> Draft
+                        </pre>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Rule matrix</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Dimension</th>
+                                <th>Rule trong code</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Package radius</td>
+                                <td>Basic 50m, Premium 120m, Boost 200m.</td>
+                            </tr>
+                            <tr>
+                                <td>QR counting</td>
+                                <td>Mỗi visitor chỉ được cộng 1 lượt/POI/6 giờ; replay vẫn cho nghe lại nhưng không cộng thêm.</td>
+                            </tr>
+                            <tr>
+                                <td>Narration counting</td>
+                                <td>Tối đa 4 lượt counted trong 1 phút cho cùng khung kiểm soát; vượt ngưỡng là replay/rate-limited.</td>
+                            </tr>
+                            <tr>
+                                <td>Merchant edit sau approved</td>
+                                <td>Sửa nội dung sẽ đưa POI về Draft để submit lại.</td>
+                            </tr>
+                            <tr>
+                                <td>Translation</td>
+                                <td>Nếu provider không sẵn, trạng thái chuyển `PendingManual` và hệ thống giữ fallback/source text.</td>
+                            </tr>
+                            <tr>
+                                <td>Moderation</td>
+                                <td>Có token bị chặn thì reject ngay; nếu không có engine moderation cấu hình đầy đủ thì đi manual review.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="merchant">
+            <div class="section-header">
+                <div>
+                    <h2>Nhóm hoạt động Merchant</h2>
+                    <p>Đây là flow lớn nhất của sản phẩm: merchant được onboard, tạo draft, dịch nội dung, submit lên admin và nâng gói để mở rộng vùng ảnh hưởng.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Đăng ký merchant và khởi tạo phiên làm việc</h3>
+                            <p>Merchant tạo tài khoản local bằng họ tên, số điện thoại, email, mật khẩu; nếu thành công hệ thống trả JWT và session hoạt động ngay.</p>
+                        </div>
+                        <div class="activity-id">M-01</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Actor: Merchant</span>
+                        <span>Touchpoint: `/merchant/signup`</span>
+                        <span>API: `POST /api/auth/merchant/register`</span>
+                        <span>Kết quả: token + sessionId</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Happy path</h4>
+                            <ol>
+                                <li>Merchant nhập `FullName`, `Phone`, `Email`, `Password`.</li>
+                                <li>API kiểm tra phone chưa tồn tại, hash mật khẩu bằng BCrypt.</li>
+                                <li>Hệ thống tạo `User` với role `Merchant` và `UserSession` mới.</li>
+                                <li>JWT chứa `sessionId` được trả lại cho client.</li>
+                                <li>Portal lưu token vào local storage và chuyển sang màn tạo POI.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Luật và acceptance</h4>
+                            <ul>
+                                <li>Phone phải unique ở bảng Users.</li>
+                                <li>Session được kiểm tra lại ở middleware mỗi lần JWT được validate.</li>
+                                <li>Phải có audit event `MERCHANT_REGISTERED`.</li>
+                                <li>Sau đăng ký thành công, merchant không cần login lại.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Đăng nhập merchant và nối lại phiên</h3>
+                            <p>Merchant dùng số điện thoại và mật khẩu để truy cập dashboard, hoặc được điều hướng thẳng nếu token local còn sống.</p>
+                        </div>
+                        <div class="activity-id">M-02</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `/merchant/login`</span>
+                        <span>API: `POST /api/auth/merchant/login`, `GET /api/auth/me`</span>
+                        <span>Dependency: JWT + session active</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Main behavior</h4>
+                            <ol>
+                                <li>Portal kiểm tra local storage ở lần render đầu.</li>
+                                <li>Nếu có token, portal gọi `/api/auth/me` để xác nhận session còn active.</li>
+                                <li>Nếu token hợp lệ và role là Merchant, redirect về dashboard.</li>
+                                <li>Nếu login thủ công, API verify BCrypt, update `LastLoginAt`, tạo session mới và trả token mới.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Failure behavior</h4>
+                            <ul>
+                                <li>Token hỏng hoặc session revoked: client xóa auth cache local.</li>
+                                <li>Sai password: trả lỗi nghiệp vụ “Sai số điện thoại hoặc mật khẩu”.</li>
+                                <li>Logout sẽ đánh dấu `UserSession.IsRevoked = true`.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Tạo draft POI mới</h3>
+                            <p>Merchant khai báo tên quán, địa chỉ, tags, mô tả nguồn và vị trí trên bản đồ. Draft mặc định luôn là gói Basic.</p>
+                        </div>
+                        <div class="activity-id">M-03</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `/merchant/register`</span>
+                        <span>API: `POST /api/poi`</span>
+                        <span>State đầu ra: `Draft`</span>
+                        <span>Radius: 50m mặc định</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Happy path</h4>
+                            <ol>
+                                <li>Merchant nhập mô tả nguồn tiếng Việt, portal gọi preview translation sau debounce 900ms.</li>
+                                <li>Merchant có thể giữ bản dịch tự động hoặc sửa tay từng ngôn ngữ EN/KO/JA/ZH.</li>
+                                <li>Merchant chọn lat/lng qua map editor hoặc nhập tay.</li>
+                                <li>API tạo bản ghi `POI` với package `Basic`, `Status = Draft`, `ApprovalStatus = Draft`.</li>
+                                <li>Backend chạy moderation, refresh translation cache, tạo stub billing record nếu cần, rồi trả item vừa tạo.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance và rule</h4>
+                            <ul>
+                                <li>POI mới không được set Premium/Boost trực tiếp trong form tạo.</li>
+                                <li>Radius không cho merchant chỉnh tay; hệ thống tính theo package.</li>
+                                <li>Nếu tags rỗng, backend có thể suy luận tag từ tên quán + mô tả.</li>
+                                <li>Nếu translation provider chưa cấu hình, draft vẫn tạo được nhưng translation status sẽ manual/pending.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Preview translation và biên tập nội dung đa ngôn ngữ</h3>
+                            <p>Đây là activity con nhưng rất quan trọng: mỗi khi source description đổi, hệ thống cố dịch lại và cho merchant chỉnh tay trước khi lưu.</p>
+                        </div>
+                        <div class="activity-id">M-04</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `POST /api/translation/preview`</span>
+                        <span>Target languages: EN, KO, JA, ZH</span>
+                        <span>Status: `Ready` hoặc `PendingManual`</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Chi tiết xử lý</h4>
+                            <ol>
+                                <li>Portal gửi `SourceLanguage`, `SourceDescription`, `TargetLanguages`.</li>
+                                <li>Nếu target trùng source hoặc đã có bản dịch cache/provided text, API trả `Ready` ngay.</li>
+                                <li>Nếu provider chưa cấu hình hoặc gặp lỗi, API trả `PendingManual` và `ErrorMessage`.</li>
+                                <li>Portal chỉ lưu các bản dịch có trạng thái `Ready`; phần còn lại cho phép nhập tay.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Mục tiêu UX</h4>
+                            <ul>
+                                <li>Merchant không bị chặn bởi lỗi dịch tự động.</li>
+                                <li>Portal luôn nói rõ bản dịch nào đã sẵn sàng lưu xuống DB.</li>
+                                <li>Manual override phải tồn tại cho từng ngôn ngữ.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Quản lý danh sách POI của merchant</h3>
+                            <p>Merchant xem toàn bộ POI sở hữu, sửa nội dung, kiểm tra counters QR/TTS và submit duyệt lại bất cứ lúc nào.</p>
+                        </div>
+                        <div class="activity-id">M-05</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `/merchant/pois`</span>
+                        <span>API: `GET /api/poi/owner/{ownerId}`, `PUT /api/poi/{id}`</span>
+                        <span>Hiển thị: status, package, QR/TTS counters</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Main behavior</h4>
+                            <ol>
+                                <li>Portal dùng `PortalGuard` xác thực role Merchant rồi mới gọi danh sách owner POI.</li>
+                                <li>Mỗi POI có action sửa, gửi duyệt, mua gói, archive.</li>
+                                <li>Khi mở edit, merchant chỉnh tên, địa chỉ, tags, source content, translations, vị trí.</li>
+                                <li>Nếu merchant update một POI đang approved hoặc rejected, backend đưa POI về `Draft` và xóa reviewer metadata.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>Merchant chỉ được sửa POI của chính mình.</li>
+                                <li>Mỗi thay đổi nội dung phải tăng khả năng cần submit lại.</li>
+                                <li>UI phải phản ánh package hiện tại và radius hệ thống tương ứng.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Submit POI lên admin review</h3>
+                            <p>Sau khi merchant thấy nội dung đã ổn, họ chuyển POI từ draft sang submitted để admin soát và phê duyệt.</p>
+                        </div>
+                        <div class="activity-id">M-06</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `POST /api/poi/{id}/submit`</span>
+                        <span>State chuyển: `Draft` -> `Submitted`</span>
+                        <span>Audit: `POI submitted`</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Happy path</h4>
+                            <ol>
+                                <li>Merchant bấm “Gửi duyệt”.</li>
+                                <li>API load POI, xác nhận quyền sửa, set `Status = Submitted`, `ApprovalStatus = Submitted`.</li>
+                                <li>POI xuất hiện trong danh sách `submitted-with-changes` của admin.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Definition of done</h4>
+                            <ul>
+                                <li>Merchant nhìn thấy trạng thái mới trên portal sau reload.</li>
+                                <li>Admin có thể mở hồ sơ submitted và xem diff so với snapshot approved gần nhất.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Mua Premium hoặc Boost cho POI</h3>
+                            <p>Merchant nâng gói sau khi đã có POI. Checkout URL được tạo qua PayOS, còn hiệu lực package chỉ được kích hoạt khi webhook xác nhận thành công.</p>
+                        </div>
+                        <div class="activity-id">M-07</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `POST /api/billing/package/checkout`</span>
+                        <span>Webhook: `POST /api/billing/webhook/payos`</span>
+                        <span>Package: Premium hoặc Boost</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Flow nghiệp vụ</h4>
+                            <ol>
+                                <li>Merchant chọn package từ màn hình quản lý POI.</li>
+                                <li>Backend kiểm tra POI còn quyền truy cập, package hiện tại chưa còn hiệu lực trùng loại.</li>
+                                <li>BillingRecord trạng thái `PendingPayment` được tạo cùng checkout URL từ gateway.</li>
+                                <li>Sau webhook success, backend set `PaidAt`, `EffectiveTo` và cập nhật POI.</li>
+                                <li>Premium set package `Premium` + `SubscriptionExpiry`; Boost set `BoostPriority`, `BoostExpiresAt` và radius 200m.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>Không cho tạo checkout Premium nếu Premium còn hiệu lực.</li>
+                                <li>Không cho tạo checkout Boost nếu Boost còn hạn.</li>
+                                <li>Radius hiển thị ở UI phải đổi theo package sau khi payment hoàn tất và data được tải lại.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="admin">
+            <div class="section-header">
+                <div>
+                    <h2>Nhóm hoạt động Admin</h2>
+                    <p>Admin vừa là reviewer nội dung, vừa là operator của toàn hệ thống: theo dõi analytics, kiểm tra thiết bị online và xử lý dữ liệu lệch.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Đăng nhập admin và bootstrap tài khoản hệ thống</h3>
+                            <p>Admin đăng nhập bằng endpoint riêng. Ngoài ra backend có bootstrap admin từ config khi khởi động để bảo đảm luôn có tài khoản vận hành.</p>
+                        </div>
+                        <div class="activity-id">A-01</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `POST /api/auth/admin/login`</span>
+                        <span>Bootstrap: `EnsureBootstrapAdminAsync()`</span>
+                        <span>Role bắt buộc: Admin</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Hành vi chính</h4>
+                            <ul>
+                                <li>Admin login dùng flow JWT/session giống merchant nhưng role bắt buộc là `Admin`.</li>
+                                <li>Khi API startup, nếu cấu hình `AdminBootstrap` bật thì hệ thống tự tạo hoặc reset password cho admin bootstrap.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Ý nghĩa sản phẩm</h4>
+                            <ul>
+                                <li>Giảm rủi ro hệ thống “không còn cửa vào admin”.</li>
+                                <li>Cho phép triển khai demo hoặc môi trường mới nhanh hơn.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Dashboard quản trị tổng</h3>
+                            <p>Admin có một điểm nhìn hợp nhất về merchant, POI, QR/TTS counted, revenue, heatmap tracking và danh sách thiết bị online.</p>
+                        </div>
+                        <div class="activity-id">A-02</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `/admin/dashboard`</span>
+                        <span>API: `/analytics/admin/overview`, `/analytics/admin/heatmap`, `/poi/map-summary`, `/tracking/online-devices`</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Dữ liệu hiển thị</h4>
+                            <ul>
+                                <li>Tổng merchant, tổng POI, pending POI, approved POI.</li>
+                                <li>Counted QR scans, counted TTS plays, MRR và total revenue theo billing active.</li>
+                                <li>QR/TTS trend 7 ngày.</li>
+                                <li>Heatmap location trong vài giờ gần đây và overlay các POI.</li>
+                                <li>Danh sách online devices cập nhật polling 5 giây/lần.</li>
+                                <li>Recent audit logs.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Rule vận hành</h4>
+                            <ul>
+                                <li>Online devices dựa trên `PresenceTracker` với last seen threshold ngắn.</li>
+                                <li>Heatmap đọc từ `TrackingData`, không phải từ presence cache.</li>
+                                <li>Dashboard phải degrade gracefully nếu một endpoint phụ bị lỗi.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Duyệt submitted POI bằng cơ chế diff với snapshot approved gần nhất</h3>
+                            <p>Đây là activity review lõi: admin không chỉ thấy bản submit hiện tại, mà còn thấy delta so với version đã approved trước đó.</p>
+                        </div>
+                        <div class="activity-id">A-03</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `/admin/poi-approval`</span>
+                        <span>API: `GET /api/poi/submitted-with-changes`, `POST /api/poi/{id}/review`</span>
+                        <span>Snapshot source: `PoiReviewSnapshot`</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Happy path</h4>
+                            <ol>
+                                <li>Admin load danh sách submitted, mỗi item có cờ `IsNewPoi` hoặc “có thay đổi”.</li>
+                                <li>Admin mở chi tiết để xem source text, translations, tags, package, radius, location, ảnh và merchant note.</li>
+                                <li>Admin xem bảng `Changes` gồm field, loại thay đổi, giá trị cũ và mới.</li>
+                                <li>Admin approve hoặc reject kèm lý do.</li>
+                                <li>Nếu approve, backend tạo snapshot approved mới để các lần submit sau có mốc so sánh.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Luật quan trọng</h4>
+                            <ul>
+                                <li>Chỉ admin được duyệt POI.</li>
+                                <li>Nếu approve và moderation đang `PendingManual`, backend đổi sang `Approved`.</li>
+                                <li>Approve/reject đều cập nhật `ReviewedBy`, `ReviewedAt`, `RejectionReason` tương ứng.</li>
+                                <li>Snapshot phải lưu radius effective, content version, translations và location đã duyệt.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Quản lý POI toàn cục và can thiệp trực tiếp</h3>
+                            <p>Admin có thể lọc, sửa, submit lại, archive và mở trực tiếp WebQR của bất cứ POI nào trong hệ thống.</p>
+                        </div>
+                        <div class="activity-id">A-04</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `/admin/poi-management`</span>
+                        <span>API: `GET /api/poi`, `PUT /api/poi/{id}`, `DELETE /api/poi/{id}`</span>
+                        <span>Filter: search + status + page</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Behavior</h4>
+                            <ul>
+                                <li>Admin có quyền set `PriorityLevel`, `BoostPriority`, `SubscriptionPackage` và vị trí.</li>
+                                <li>Admin có thể dịch lại từ source hoặc sửa tay từng bản dịch.</li>
+                                <li>Admin mở nút WebQR để kiểm thử trang công khai của từng POI.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Kết quả mong đợi</h4>
+                            <ul>
+                                <li>Admin chỉnh sửa xong có thể đưa lại vào submitted flow nếu muốn review lại như merchant.</li>
+                                <li>Archive phải reset package về Basic và tắt trạng thái paid/boost đang có.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Ops và sửa dữ liệu nền</h3>
+                            <p>Admin có capability vận hành hệ thống chứ không chỉ content moderation: xem audit logs, sessions, metrics và chạy repair job.</p>
+                        </div>
+                        <div class="activity-id">A-05</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `/api/audit-logs`, `/api/sessions`, `/api/ops/system-metrics`, repair endpoints</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Capability</h4>
+                            <ul>
+                                <li>Xem audit feed và sessions để điều tra vận hành.</li>
+                                <li>Xem request count, latency, p95, server error.</li>
+                                <li>Repair analytics counters từ log gốc.</li>
+                                <li>Repair/bổ sung tags còn thiếu.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Giá trị</h4>
+                            <ul>
+                                <li>Giảm lệch số liệu do duplicate window hoặc dữ liệu legacy.</li>
+                                <li>Hỗ trợ rollout và demo khi DB có dữ liệu lịch sử không đồng nhất.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="visitor">
+            <div class="section-header">
+                <div>
+                    <h2>Nhóm hoạt động Visitor trên WebQR</h2>
+                    <p>Flow WebQR rất thẳng: mở link, ghi nhận quét, chọn ngôn ngữ, nghe narration và lấy đường đi đến quán.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Đi vào trang POI từ QR hoặc URL trực tiếp</h3>
+                            <p>Khi visitor mở `/?id=...` hoặc `/poi/{id}`, trang tự redirect đúng route, gọi API lấy public detail và render hero page.</p>
+                        </div>
+                        <div class="activity-id">V-01</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Touchpoint: `WebQR`</span>
+                        <span>API: `GET /api/poi/details/{id}`</span>
+                        <span>Điều kiện: POI phải `Approved`</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Main flow</h4>
+                            <ol>
+                                <li>Trang home của WebQR nhận query `id` và redirect tới `/poi/{id}`.</li>
+                                <li>Component `POIDetail` gọi endpoint public detail.</li>
+                                <li>Nếu POI chưa approved hoặc id sai, visitor nhận trạng thái not found.</li>
+                                <li>Nếu thành công, trang render ảnh quán, tên, địa chỉ, selector ngôn ngữ và mini map.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>Visitor không cần login.</li>
+                                <li>Chỉ POI approved mới lộ dữ liệu công khai.</li>
+                                <li>Nếu ảnh trống, UI có hero image fallback.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Ghi nhận QR scan và xử lý cooldown</h3>
+                            <p>WebQR chủ động gọi API scan ngay khi trang detail khởi tạo, dùng visitorId lưu ở cookie và sessionId lưu ở sessionStorage.</p>
+                        </div>
+                        <div class="activity-id">V-02</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `POST /api/qr/scan`</span>
+                        <span>Trigger source: `WebQR`</span>
+                        <span>Cooldown: 6 giờ / visitor / POI</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Behavior</h4>
+                            <ol>
+                                <li>Frontend tự sinh `visitorId` cookie nếu chưa có.</li>
+                                <li>Frontend tự sinh `sessionId` browser session nếu chưa có.</li>
+                                <li>API tra log counted gần nhất cùng POI + visitor.</li>
+                                <li>Nếu quá 6 giờ, scan được counted; nếu chưa, scan bị đánh dấu replay nhưng người dùng vẫn tiếp tục trải nghiệm.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>UI expectation</h4>
+                            <ul>
+                                <li>Nếu đang trong cooldown, banner giải thích rõ “vẫn nghe lại được nhưng không cộng thêm lượt”.</li>
+                                <li>Nếu API scan lỗi, visitor vẫn phải tiếp tục xem và nghe nội dung.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Nghe narration theo ngôn ngữ</h3>
+                            <p>Visitor chọn ngôn ngữ, bấm nghe. Hệ thống ưu tiên file audio nếu có; nếu không, dùng trình speech synthesis của browser.</p>
+                        </div>
+                        <div class="activity-id">V-03</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `POST /api/narration/play`, `POST /api/narration/finish`</span>
+                        <span>Fallback: browser TTS</span>
+                        <span>Finish status: Completed / Stopped / Error</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Main flow</h4>
+                            <ol>
+                                <li>Frontend gọi `/api/narration/play` với `poiId`, `visitorId`, `sessionId`, `language`.</li>
+                                <li>API tạo `NarrationLog`, quyết định counted hay replay theo cửa sổ 1 phút.</li>
+                                <li>Nếu content có `audioUrl`, browser phát file; nếu không, dùng `SpeechSynthesisUtterance`.</li>
+                                <li>Khi kết thúc, dừng hoặc lỗi, frontend gửi `/api/narration/finish` với dwell time.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>Visitor được đổi ngôn ngữ và việc đổi ngôn ngữ phải dừng playback cũ.</li>
+                                <li>Nếu play response báo rate limited, UI chỉ cảnh báo chứ không chặn nghe.</li>
+                                <li>Finish event phải được gửi kể cả khi bị stop thủ công.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Mở bản đồ chỉ đường</h3>
+                            <p>WebQR render mini map bằng Leaflet và có nút mở Google Maps directions tới đúng tọa độ POI.</p>
+                        </div>
+                        <div class="activity-id">V-04</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Map stack: Leaflet + OSM</span>
+                        <span>Action: Google Maps Directions</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Expected outcome</h4>
+                            <ul>
+                                <li>Người dùng thấy rõ vị trí quán ngay trong trang.</li>
+                                <li>Nút chỉ đường mở tab ngoài để điều hướng tức thì.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Business value</h4>
+                            <ul>
+                                <li>Giảm ma sát giữa “nghe kể chuyện” và “đi đến quán”.</li>
+                                <li>Tăng khả năng chuyển từ nội dung sang ghé thăm thật.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="mobile">
+            <div class="section-header">
+                <div>
+                    <h2>Nhóm hoạt động Mobile app</h2>
+                    <p>Mobile bổ sung phần “discovery” và “proximity” mà WebQR không làm: nearby, geofence, offline queue, bản đồ và playback native hơn.</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Khám phá danh sách POI và lọc theo category</h3>
+                            <p>Home page tải danh sách approved POI, cho phép tìm kiếm theo tên, địa chỉ và tag, đồng thời có category pills tương ứng với tag đã chuẩn hóa.</p>
+                        </div>
+                        <div class="activity-id">MB-01</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `GET /api/poi/approved`</span>
+                        <span>Data source fallback: SQLite offline cache</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Main behavior</h4>
+                            <ol>
+                                <li>App gọi approved POI page size lớn.</li>
+                                <li>Danh sách được normalize rồi lưu vào `OfflineStore`.</li>
+                                <li>User lọc theo query và category đã bỏ dấu.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>Nếu API lỗi, app vẫn đọc POI cache gần nhất từ SQLite.</li>
+                                <li>Tag summary phải thân thiện với người dùng, ví dụ “oc dem” hiển thị thành “Ốc đêm”.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Tìm nearby POI bằng GPS</h3>
+                            <p>App xin quyền location, lấy tọa độ hiện tại, gọi nearby API và tính lại distance client-side để hiển thị sắp xếp gần nhất.</p>
+                        </div>
+                        <div class="activity-id">MB-02</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>API: `GET /api/poi/nearby`</span>
+                        <span>Max distance default từ app: 5000m</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Behavior</h4>
+                            <ul>
+                                <li>Nếu có quyền GPS, app gọi nearby từ server rồi tính distance thực tế theo user location.</li>
+                                <li>Nếu không có location hoặc API lỗi, app fallback về top POI từ cache.</li>
+                                <li>Khoảng cách được cập nhật lại cho cả danh sách hiện có.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Rule</h4>
+                            <ul>
+                                <li>Nearby chỉ dựa trên POI approved.</li>
+                                <li>Server clamp `maxDistance` trong ngưỡng an toàn.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Quét QR từ mobile</h3>
+                            <p>Mobile camera đọc QR, trích xuất POI ObjectId từ chuỗi URL hoặc text, lấy detail, record scan và lưu lịch sử gần đây.</p>
+                        </div>
+                        <div class="activity-id">MB-03</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Screen: `QrScannerPage`</span>
+                        <span>API: `GET /api/poi/details/{id}`, `POST /api/qr/scan`</span>
+                        <span>History: Preferences `QrHistory`</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Happy path</h4>
+                            <ol>
+                                <li>ZXing nhận QR, code parser cố lấy ObjectId từ segment, query `id=` hoặc raw text.</li>
+                                <li>App gọi detail để chắc chắn POI tồn tại.</li>
+                                <li>App gọi record scan với trigger `MobileQR`.</li>
+                                <li>Nếu `InCooldown = true`, app cảnh báo nhưng vẫn cho vào detail.</li>
+                                <li>POI được thêm vào lịch sử quét gần đây.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>QR ngoài hệ thống phải bị từ chối rõ ràng.</li>
+                                <li>Scan thành công phải điều hướng tới `PoiDetailPage` ngay cả khi scan là replay.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Xem chi tiết POI và phát thuyết minh trên mobile</h3>
+                            <p>Người dùng chọn ngôn ngữ; app ưu tiên audio file theo language, nếu thiếu thì fallback sang native TextToSpeech.</p>
+                        </div>
+                        <div class="activity-id">MB-04</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Services: `PoiService`, `NarrationPlaybackService`</span>
+                        <span>API: play + finish narration</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Behavior</h4>
+                            <ul>
+                                <li>App gọi `StartNarrationAsync` trước khi phát nội dung.</li>
+                                <li>Nếu có `AudioUrl_{lang}`, app phát native audio; nếu không, dùng TextToSpeech locale phù hợp.</li>
+                                <li>Khi stop, complete hoặc error, app gửi finish event cùng dwell time.</li>
+                                <li>User có thể lưu favorite và mở map điều hướng tới quán.</li>
+                            </ul>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Acceptance</h4>
+                            <ul>
+                                <li>Đổi ngôn ngữ trong lúc đang phát phải dừng playback cũ.</li>
+                                <li>Playback failure không được làm mất hoàn toàn detail screen.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="activity-card">
+                    <div class="activity-head">
+                        <div>
+                            <h3>Background tracking, geofence và queue offline</h3>
+                            <p>Mobile liên tục refresh POI, gửi ping vị trí, kiểm tra user có vào vùng radius của quán nào không, và xếp hàng sự kiện thất bại để flush sau.</p>
+                        </div>
+                        <div class="activity-id">MB-05</div>
+                    </div>
+                    <div class="meta-row">
+                        <span>Services: `TrackingService`, `GeofenceMonitorService`, `OfflineStore`</span>
+                        <span>Threshold: moving 10s, stationary 30s, notification cooldown 30m</span>
+                    </div>
+                    <div class="activity-columns">
+                        <div class="activity-block">
+                            <h4>Main flow</h4>
+                            <ol>
+                                <li>Dịch vụ tracking xin quyền location khi start.</li>
+                                <li>Cứ mỗi chu kỳ, app refresh danh sách POI nếu cần rồi lấy location hiện tại.</li>
+                                <li>App gửi `tracking/ping` cùng device/session/platform/app version.</li>
+                                <li>App tính khoảng cách tới mọi POI, nếu vào trong radius gần nhất và chưa cảnh báo trong 30 phút thì trigger `onPoiEntered`.</li>
+                                <li>Nếu ping hoặc narration finish lỗi, payload được lưu vào SQLite queue để flush lại sau.</li>
+                            </ol>
+                        </div>
+                        <div class="activity-block">
+                            <h4>Definition of done</h4>
+                            <ul>
+                                <li>Trải nghiệm phải chịu được mất mạng ngắn hạn.</li>
+                                <li>Server-side online map vẫn có thể nhìn thấy thiết bị mobile đang hoạt động gần thời gian thực.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rules">
+            <div class="section-header">
+                <div>
+                    <h2>Luật nghiệp vụ, KPI và dữ liệu đo lường</h2>
+                    <p>Phần này gom lại những ràng buộc nằm rải trong service layer và cũng là thứ nên được xem như acceptance criteria cấp hệ thống.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-2">
+                <div class="card">
+                    <h3>Luật counting và anti-spam</h3>
+                    <ul>
+                        <li><span class="tone-success">QR:</span> counted 1 lần cho mỗi visitor, mỗi POI, mỗi khung 6 giờ; replay chỉ tăng `ReplayQrScanCount`.</li>
+                        <li><span class="tone-success">Narration:</span> counted tối đa 4 lần trong 1 phút; vượt ngưỡng thành replay/rate-limited.</li>
+                        <li><span class="tone-info">WindowKey:</span> backend tạo key theo phút cho narration và theo block 6 giờ cho QR.</li>
+                        <li><span class="tone-violet">Repair:</span> có job sửa lại counters từ log gốc nếu dữ liệu lệch.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Luật nội dung và moderation</h3>
+                    <ul>
+                        <li>Source language mặc định là `vi`.</li>
+                        <li>EN/KO/JA/ZH có thể auto-translate hoặc merchant/admin nhập tay.</li>
+                        <li>Nếu source chứa blocked tokens thì moderation trả `Rejected` ngay.</li>
+                        <li>Nếu moderation engine ngoài chưa cấu hình, trạng thái là `PendingManual` và admin phải ra quyết định.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>Luật billing và phạm vi hiển thị</h3>
+                    <ul>
+                        <li>Basic: 50m.</li>
+                        <li>Premium: 120m, có `SubscriptionExpiry`.</li>
+                        <li>Boost: 200m, có `BoostPriority` và `BoostExpiresAt`.</li>
+                        <li>Archive POI sẽ reset package về Basic, tắt `IsPaid`, xóa expiry/boost đang có.</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3>KPI hệ thống hiện có trong dashboard</h3>
+                    <ul>
+                        <li>Active users / online devices.</li>
+                        <li>Total owners, total POIs, pending POIs, approved POIs.</li>
+                        <li>Counted QR scans, counted TTS plays, replay TTS plays.</li>
+                        <li>Monthly recurring revenue và total revenue từ billing active.</li>
+                        <li>Heatmap vị trí người dùng, top POIs, recent audit logs, content completeness score.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="gaps">
+            <div class="section-header">
+                <div>
+                    <h2>Khoảng trống và ghi chú khi dùng tài liệu này</h2>
+                    <p>Đây không phải bug list, mà là những biên sản phẩm mình thấy được khi đối chiếu trực tiếp với repo hiện tại.</p>
+                </div>
+            </div>
+
+            <div class="grid grid-3">
+                <div class="card">
+                    <h3>Ảnh và audio</h3>
+                    <p>Backend đã có upload image service và field audio URL đa ngôn ngữ, nhưng UI merchant/admin hiện thiên về text/location; pipeline tạo audio hàng loạt chưa xuất hiện trong code này.</p>
+                </div>
+                <div class="card">
+                    <h3>Social login</h3>
+                    <p>Có endpoint social login trong API, nhưng web portal hiện tại đang chủ yếu dùng local auth cho admin/merchant.</p>
+                </div>
+                <div class="card">
+                    <h3>Product direction</h3>
+                    <p>Nếu dùng tài liệu này làm đầu vào cho vòng phát triển tiếp theo, nên xem nó như “phiên bản hiện trạng có cấu trúc” để mở rộng tiếp, không phải bản vision marketing.</p>
+                </div>
+            </div>
+
+            <p class="foot">
+                Tài liệu này được dựng từ code trong `D:\VisualStudio\Repos` và bám theo các module `TourGuide.API`, `TourGuide.WebAdmin`, `TourGuide.WebQR`, `Client/Mobile`.
+            </p>
+        </section>
+    </main>
+
+    <script>
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: "base",
+            themeVariables: {
+                background: "#ffffff",
+                primaryColor: "#fff7ed",
+                primaryTextColor: "#1f2937",
+                primaryBorderColor: "#fb923c",
+                lineColor: "#cbd5e1",
+                secondaryColor: "#eff6ff",
+                tertiaryColor: "#f8fafc"
+            }
+        });
+    </script>
+</body>
+</html>

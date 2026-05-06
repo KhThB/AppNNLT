@@ -13,6 +13,7 @@ public partial class HomePageViewModel : ObservableObject
 {
     private readonly PoiService _poiService;
     private readonly List<PoiModel> _allPois = new();
+    private Location? _currentLocation;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsNotBusy))]
@@ -91,33 +92,59 @@ public partial class HomePageViewModel : ObservableObject
         {
             NearbyPois.Clear();
 
-            var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(10));
-            var location = await Geolocation.Default.GetLocationAsync(request);
+            var status = await Permissions.CheckStatusAsync<Permissions.LocationWhenInUse>();
+            if (status != PermissionStatus.Granted)
+            {
+                status = await Permissions.RequestAsync<Permissions.LocationWhenInUse>();
+            }
+
+            Location? location = null;
+            if (status == PermissionStatus.Granted)
+            {
+                var request = new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(10));
+                location = await Geolocation.Default.GetLocationAsync(request);
+                _currentLocation = location;
+                
+                // Update distances for all existing POIs
+                if (_currentLocation != null)
+                {
+                    foreach (var p in _allPois)
+                    {
+                        var d = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(_currentLocation.Latitude, _currentLocation.Longitude, p.Latitude, p.Longitude, DistanceUnits.Kilometers);
+                        p.Distance = d * 1000;
+                    }
+                    // Refresh the lists to trigger UI updates
+                    ApplyFilters();
+                }
+            }
+
             if (location == null)
             {
-                AddFallbackNearby();
+                AddFallbackNearby(null);
                 return;
             }
 
             var items = await _poiService.GetNearbyPoisAsync(location.Longitude, location.Latitude, 5000);
             foreach (var item in items)
             {
+                var dist = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(location.Latitude, location.Longitude, item.Latitude, item.Longitude, DistanceUnits.Kilometers);
+                item.Distance = dist * 1000;
                 NearbyPois.Add(item);
             }
 
             if (NearbyPois.Count == 0)
             {
-                AddFallbackNearby();
+                AddFallbackNearby(location);
             }
         }
         catch (Exception ex) when (ex is FeatureNotSupportedException or FeatureNotEnabledException or PermissionException)
         {
-            AddFallbackNearby();
+            AddFallbackNearby(null);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to load nearby POIs: {ex.Message}");
-            AddFallbackNearby();
+            AddFallbackNearby(null);
         }
     }
 
@@ -168,11 +195,20 @@ public partial class HomePageViewModel : ObservableObject
         }
     }
 
-    private void AddFallbackNearby()
+    private void AddFallbackNearby(Location? userLocation)
     {
         NearbyPois.Clear();
         foreach (var item in _allPois.Take(10))
         {
+            if (userLocation != null)
+            {
+                var dist = Microsoft.Maui.Devices.Sensors.Location.CalculateDistance(userLocation.Latitude, userLocation.Longitude, item.Latitude, item.Longitude, DistanceUnits.Kilometers);
+                item.Distance = dist * 1000;
+            }
+            else
+            {
+                item.Distance = 0; // or null if we don't want to show it
+            }
             NearbyPois.Add(item);
         }
     }

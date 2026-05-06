@@ -19,9 +19,7 @@
         <Tab Route="QrScannerPageTab" Title="" Icon="ic_scan.png">
             <ShellContent Route="QrScannerPage" ContentTemplate="{DataTemplate views:QrScannerPage}" />
         </Tab>
-        <Tab Route="TourPageTab" Title="" Icon="{AppThemeBinding Light=ic_tours.png, Dark=ic_tours_dark.png}">
-            <ShellContent Route="TourPage" ContentTemplate="{DataTemplate views:TourPage}" />
-        </Tab>
+
         <Tab Route="ProfilePageTab" Title="" Icon="{AppThemeBinding Light=ic_profile.png, Dark=ic_profile_dark.png}">
             <ShellContent Route="ProfilePage" ContentTemplate="{DataTemplate views:ProfilePage}" />
         </Tab>

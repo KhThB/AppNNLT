@@ -1,22 +1,20 @@
-using Microsoft.Maui.Dispatching;
 using Mobile.Services;
+using Mobile.Views;
+using Microsoft.Maui.Storage;
 
 namespace Mobile;
 
 public partial class App : Application
 {
-    private readonly PoiService _poiService;
-    private readonly IDispatcherTimer? _pingTimer;
-    private bool _isSendingPing;
+    public const string PendingPoiNavigationKey = "poiId";
 
-    public App(PoiService poiService)
+    private static bool _isNavigatingPendingPoi;
+    private readonly ITrackingService _trackingService;
+
+    public App(ITrackingService trackingService)
     {
         InitializeComponent();
-        _poiService = poiService;
-
-        _pingTimer = Dispatcher.CreateTimer();
-        _pingTimer.Interval = TimeSpan.FromSeconds(10);
-        _pingTimer.Tick += async (_, _) => await SendPingAsync();
+        _trackingService = trackingService;
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
@@ -27,38 +25,67 @@ public partial class App : Application
     protected override async void OnStart()
     {
         base.OnStart();
-        await SendPingAsync();
-        _pingTimer?.Start();
+        await StartTrackingAsync();
+        await TryNavigateToPendingPoiAsync();
     }
 
     protected override void OnSleep()
     {
         base.OnSleep();
-        _pingTimer?.Stop();
     }
 
     protected override async void OnResume()
     {
         base.OnResume();
-        await SendPingAsync();
-        _pingTimer?.Start();
+        await StartTrackingAsync();
+        await TryNavigateToPendingPoiAsync();
     }
 
-    private async Task SendPingAsync()
+    public static async Task TryNavigateToPendingPoiAsync()
     {
-        if (_isSendingPing)
+        if (_isNavigatingPendingPoi)
+        {
+            return;
+        }
+
+        var poiId = Preferences.Default.Get(PendingPoiNavigationKey, string.Empty);
+        if (string.IsNullOrWhiteSpace(poiId))
         {
             return;
         }
 
         try
         {
-            _isSendingPing = true;
-            await _poiService.SendPingAsync();
+            _isNavigatingPendingPoi = true;
+
+            if (Shell.Current == null)
+            {
+                return;
+            }
+
+            Preferences.Default.Remove(PendingPoiNavigationKey);
+            var route = $"{nameof(PoiDetailPage)}?poiId={Uri.EscapeDataString(poiId)}";
+            await Shell.Current.GoToAsync(route);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to open pending POI notification: {ex.Message}");
         }
         finally
         {
-            _isSendingPing = false;
+            _isNavigatingPendingPoi = false;
+        }
+    }
+
+    private async Task StartTrackingAsync()
+    {
+        try
+        {
+            await _trackingService.StartAsync();
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to start tracking service: {ex.Message}");
         }
     }
 }

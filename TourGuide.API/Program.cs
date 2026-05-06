@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using System.Diagnostics;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
@@ -32,6 +33,7 @@ builder.Services.AddScoped<MongoIndexInitializer>();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<PresenceTracker>();
+builder.Services.AddSingleton<SystemMetricsCollector>();
 
 builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -163,6 +165,32 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
 }
+
+app.Use(async (context, next) =>
+{
+    var collector = context.RequestServices.GetRequiredService<SystemMetricsCollector>();
+    var stopwatch = Stopwatch.StartNew();
+    var exceptionThrown = false;
+
+    try
+    {
+        await next();
+    }
+    catch
+    {
+        exceptionThrown = true;
+        throw;
+    }
+    finally
+    {
+        stopwatch.Stop();
+        var statusCode = exceptionThrown
+            ? StatusCodes.Status500InternalServerError
+            : context.Response.StatusCode;
+        collector.Record(stopwatch.Elapsed.TotalMilliseconds, statusCode, exceptionThrown);
+    }
+});
+
 app.UseCors("Portal");
 app.UseStaticFiles();
 app.UseAuthentication();

@@ -27,6 +27,17 @@ public sealed class OnlineDeviceResponse
     public DateTime LastSeenAt { get; set; }
 }
 
+public sealed class SystemMetricsResponse
+{
+    public DateTime StartedAt { get; set; }
+    public double UptimeSeconds { get; set; }
+    public long RequestCount { get; set; }
+    public double AverageLatencyMs { get; set; }
+    public double P95LatencyMs { get; set; }
+    public long ServerErrorCount { get; set; }
+    public DateTime? LastErrorAt { get; set; }
+}
+
 public sealed class QrScanRequest
 {
     public string PoiId { get; set; } = string.Empty;

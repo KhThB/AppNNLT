@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Mobile.Models;
 
@@ -9,9 +10,16 @@ public sealed class PoiService
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
     private readonly HttpClient _httpClient;
     private readonly IReadOnlyList<string> _backendBaseUrls;
+    private readonly OfflineStore _offlineStore;
 
     public PoiService()
+        : this(new OfflineStore())
     {
+    }
+
+    public PoiService(OfflineStore offlineStore)
+    {
+        _offlineStore = offlineStore;
         _backendBaseUrls = ResolveBackendBaseUrls();
         _httpClient = new HttpClient(CreateHttpMessageHandler())
         {
@@ -31,12 +39,15 @@ public sealed class PoiService
                 "api/poi/approved?page=1&pageSize=100",
                 JsonOptions);
 
-            return page?.Items?.Select(NormalizePoi).ToList() ?? new List<PoiModel>();
+            var items = page?.Items?.Select(NormalizePoi).ToList() ?? new List<PoiModel>();
+            await _offlineStore.SavePoisAsync(items);
+            _ = FlushPendingEventsAsync();
+            return items;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to load approved POIs: {ex.Message}");
-            throw;
+            return await _offlineStore.GetApprovedPoisAsync();
         }
     }
 
@@ -56,12 +67,19 @@ public sealed class PoiService
             }
 
             var detail = await response.Content.ReadFromJsonAsync<PoiPublicDetailResponse>(JsonOptions);
-            return detail == null ? null : MapPublicDetail(detail);
+            if (detail == null)
+            {
+                return null;
+            }
+
+            var model = MapPublicDetail(detail);
+            await _offlineStore.SavePoiAsync(model);
+            return model;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to load POI detail: {ex.Message}");
-            return null;
+            return await _offlineStore.GetPoiAsync(id);
         }
     }
 
@@ -71,12 +89,24 @@ public sealed class PoiService
         {
             var url = $"api/poi/nearby?longitude={longitude}&latitude={latitude}&maxDistance={maxDistanceInMeters}";
             var items = await GetFromJsonWithFallbackAsync<List<PoiModel>>(url, JsonOptions);
-            return items?.Select(NormalizePoi).ToList() ?? new List<PoiModel>();
+            var normalized = items?.Select(NormalizePoi).ToList() ?? new List<PoiModel>();
+            await _offlineStore.SavePoisAsync(normalized);
+            return normalized;
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to load nearby POIs: {ex.Message}");
-            return new List<PoiModel>();
+            var cached = await _offlineStore.GetApprovedPoisAsync();
+            return cached
+                .Where(poi => poi.Latitude != 0 || poi.Longitude != 0)
+                .Select(poi =>
+                {
+                    poi.Distance = Location.CalculateDistance(latitude, longitude, poi.Latitude, poi.Longitude, DistanceUnits.Kilometers) * 1000;
+                    return poi;
+                })
+                .Where(poi => poi.Distance <= maxDistanceInMeters)
+                .OrderBy(poi => poi.Distance)
+                .ToList();
         }
     }
 
@@ -159,10 +189,20 @@ public sealed class PoiService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to finish narration: {ex.Message}");
+            await _offlineStore.EnqueueEventAsync(
+                "narration_finish",
+                "api/narration/finish",
+                new
+                {
+                    logId,
+                    status,
+                    dwellTimeSeconds,
+                    errorCode,
+                });
         }
     }
 
-    public async Task SendPingAsync()
+    public async Task SendPingAsync(Location? location = null)
     {
         double latitude = 0;
         double longitude = 0;
@@ -170,7 +210,7 @@ public sealed class PoiService
 
         try
         {
-            var location = await Geolocation.Default.GetLastKnownLocationAsync()
+            location ??= await Geolocation.Default.GetLastKnownLocationAsync()
                 ?? await Geolocation.Default.GetLocationAsync(new GeolocationRequest(GeolocationAccuracy.Medium, TimeSpan.FromSeconds(5)));
 
             if (location != null)
@@ -185,26 +225,53 @@ public sealed class PoiService
             System.Diagnostics.Debug.WriteLine($"Location unavailable for ping: {ex.Message}");
         }
 
+        var payload = new
+        {
+            deviceId = DeviceId,
+            userId = "",
+            sessionId = SessionId,
+            latitude,
+            longitude,
+            speed,
+            platform = DeviceInfo.Platform.ToString(),
+            appVersion = AppInfo.VersionString,
+            deviceName = DeviceInfo.Name,
+        };
+
         try
         {
             using var response = await PostAsJsonWithFallbackAsync(
                 "api/tracking/ping",
-                new
-                {
-                    deviceId = DeviceId,
-                    userId = "",
-                    sessionId = SessionId,
-                    latitude,
-                    longitude,
-                    speed,
-                    platform = DeviceInfo.Platform.ToString(),
-                    appVersion = AppInfo.VersionString,
-                    deviceName = DeviceInfo.Name,
-                });
+                payload);
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Failed to send ping: {ex.Message}");
+            await _offlineStore.EnqueueEventAsync("tracking_ping", "api/tracking/ping", payload);
+        }
+    }
+
+    public async Task FlushPendingEventsAsync()
+    {
+        var events = await _offlineStore.GetPendingEventsAsync();
+        foreach (var pending in events)
+        {
+            try
+            {
+                using var response = await PostJsonStringWithFallbackAsync(pending.RelativeUrl, pending.PayloadJson);
+                if (!response.IsSuccessStatusCode)
+                {
+                    await _offlineStore.MarkPendingEventAttemptAsync(pending, response.StatusCode.ToString());
+                    continue;
+                }
+
+                await _offlineStore.DeletePendingEventAsync(pending.Id);
+            }
+            catch (Exception ex)
+            {
+                await _offlineStore.MarkPendingEventAttemptAsync(pending, ex.Message);
+                break;
+            }
         }
     }
 
@@ -223,6 +290,15 @@ public sealed class PoiService
     private Task<HttpResponseMessage> PostAsJsonWithFallbackAsync<TValue>(string relativeUrl, TValue value)
     {
         return SendWithFallbackAsync(baseUrl => _httpClient.PostAsJsonAsync(BuildUri(baseUrl, relativeUrl), value, JsonOptions));
+    }
+
+    private Task<HttpResponseMessage> PostJsonStringWithFallbackAsync(string relativeUrl, string json)
+    {
+        return SendWithFallbackAsync(baseUrl =>
+        {
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            return _httpClient.PostAsync(BuildUri(baseUrl, relativeUrl), content);
+        });
     }
 
     private async Task<HttpResponseMessage> SendWithFallbackAsync(Func<string, Task<HttpResponseMessage>> send)

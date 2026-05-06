@@ -1,0 +1,332 @@
+@page "/admin/ops"
+@rendermode InteractiveServer
+@using TourGuide.WebAdmin.Components.Shared
+@using TourGuide.WebAdmin.Models
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PortalGuard RequiredRole="Admin" RedirectTo="/admin/login" OnAuthorized="LoadAfterAuthAsync">
+    <div class="d-flex justify-space-between align-center mb-4">
+        <div>
+            <MudText Typo="Typo.h4">Vận hành hệ thống</MudText>
+            <MudText Typo="Typo.body2">Health, metrics, sessions, audit và các tác vụ repair an toàn.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="ReloadAsync">Tải lại</MudButton>
+    </div>
+
+    @if (_loading)
+    {
+        <div class="d-flex justify-center my-12">
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        </div>
+    }
+    else
+    {
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption">API live</MudText>
+                    <MudText Typo="Typo.h5" Color="@(_liveOk ? Color.Success : Color.Error)">@(_liveOk ? "OK" : "Lỗi")</MudText>
+                    <MudText Typo="Typo.caption">@_liveStatus</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption">Mongo ready</MudText>
+                    <MudText Typo="Typo.h5" Color="@(_readyOk ? Color.Success : Color.Error)">@(_readyOk ? "OK" : "Lỗi")</MudText>
+                    <MudText Typo="Typo.caption">@_readyStatus</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption">Requests</MudText>
+                    <MudText Typo="Typo.h5">@_metrics.RequestCount</MudText>
+                    <MudText Typo="Typo.caption">Uptime @_metrics.UptimeSeconds.ToString("N0")s</MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.caption">Latency / 5xx</MudText>
+                    <MudText Typo="Typo.h5">@_metrics.P95LatencyMs.ToString("N1") ms</MudText>
+                    <MudText Typo="Typo.caption">Avg @_metrics.AverageLatencyMs.ToString("N1") ms · 5xx @_metrics.ServerErrorCount</MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mb-4">
+            <MudItem xs="12" lg="6">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Repair tools</MudText>
+                    <div class="d-flex flex-wrap gap-2">
+                        <MudButton Color="Color.Warning" Variant="Variant.Filled" OnClick="RepairAnalyticsAsync">Đồng bộ counter analytics</MudButton>
+                        <MudButton Color="Color.Warning" Variant="Variant.Outlined" OnClick="RepairTagsAsync">Backfill tag POI</MudButton>
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(_repairMessage))
+                    {
+                        <MudAlert Severity="Severity.Info" Dense="true" Class="mt-3">@_repairMessage</MudAlert>
+                    }
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" lg="6">
+                <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+                    <MudText Typo="Typo.h6" Class="mb-3">Sessions gần đây</MudText>
+                    <MudTable Items="_sessions" Dense="true" Hover="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Role</MudTh>
+                            <MudTh>Session</MudTh>
+                            <MudTh>Last seen</MudTh>
+                            <MudTh>Revoked</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.Role</MudTd>
+                            <MudTd>@ShortId(context.SessionId)</MudTd>
+                            <MudTd>@FormatDate(context.LastSeenAt)</MudTd>
+                            <MudTd>@(context.IsRevoked ? "Có" : "Không")</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper Class="pa-4 glass-panel" Style="border-radius: 14px;">
+            <MudText Typo="Typo.h6" Class="mb-3">Audit feed</MudText>
+            <MudTable Items="_auditLogs" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Time</MudTh>
+                    <MudTh>Actor</MudTh>
+                    <MudTh>Action</MudTh>
+                    <MudTh>Target</MudTh>
+                    <MudTh>Description</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@FormatDate(context.Timestamp)</MudTd>
+                    <MudTd>@context.ActorRole</MudTd>
+                    <MudTd>@context.ActionType</MudTd>
+                    <MudTd>@context.TargetType / @ShortId(context.TargetId)</MudTd>
+                    <MudTd>@context.Description</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+
+        <MudPaper Class="pa-4 glass-panel mt-4" Style="border-radius: 14px;">
+            <div class="d-flex flex-wrap justify-space-between align-center gap-3 mb-3">
+                <MudText Typo="Typo.h6">Billing records</MudText>
+                <div class="d-flex flex-wrap gap-2">
+                    <MudTextField @bind-Value="_billingOwnerFilter" Label="Owner/POI" Variant="Variant.Outlined" Immediate="true" />
+                    <MudSelect @bind-Value="_billingStatusFilter" Label="Trạng thái" Variant="Variant.Outlined" Dense="true" Style="min-width:150px;">
+                        <MudSelectItem Value="@string.Empty">Tất cả</MudSelectItem>
+                        <MudSelectItem Value="@("Active")">Active</MudSelectItem>
+                        <MudSelectItem Value="@("PendingPayment")">Pending</MudSelectItem>
+                        <MudSelectItem Value="@("Failed")">Failed</MudSelectItem>
+                    </MudSelect>
+                    <MudSelect @bind-Value="_billingPackageFilter" Label="Gói" Variant="Variant.Outlined" Dense="true" Style="min-width:150px;">
+                        <MudSelectItem Value="@string.Empty">Tất cả</MudSelectItem>
+                        <MudSelectItem Value="@("Premium")">Premium</MudSelectItem>
+                        <MudSelectItem Value="@("Boost")">Boost</MudSelectItem>
+                        <MudSelectItem Value="@("Basic")">Basic</MudSelectItem>
+                    </MudSelect>
+                </div>
+            </div>
+            <MudTable Items="FilteredBillingRecords" Dense="true" Hover="true" Elevation="0">
+                <HeaderContent>
+                    <MudTh>Owner</MudTh>
+                    <MudTh>POI</MudTh>
+                    <MudTh>Gói</MudTh>
+                    <MudTh>Số tiền</MudTh>
+                    <MudTh>Status</MudTh>
+                    <MudTh>Hiệu lực đến</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@ShortId(context.OwnerId)</MudTd>
+                    <MudTd>@ShortId(context.PoiId)</MudTd>
+                    <MudTd>@context.PackageName</MudTd>
+                    <MudTd>@context.Amount.ToString("N0") @context.Currency</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>@FormatDate(context.EffectiveTo)</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+</PortalGuard>
+
+@code {
+    private bool _loading = true;
+    private bool _liveOk;
+    private bool _readyOk;
+    private string _liveStatus = string.Empty;
+    private string _readyStatus = string.Empty;
+    private string _repairMessage = string.Empty;
+    private string _billingOwnerFilter = string.Empty;
+    private string _billingStatusFilter = string.Empty;
+    private string _billingPackageFilter = string.Empty;
+    private SystemMetrics _metrics = new();
+    private List<SessionItem> _sessions = new();
+    private List<AuditLogItem> _auditLogs = new();
+    private List<BillingRecordItem> _billingRecords = new();
+
+    private IEnumerable<BillingRecordItem> FilteredBillingRecords => _billingRecords.Where(record =>
+        (string.IsNullOrWhiteSpace(_billingOwnerFilter) ||
+         record.OwnerId.Contains(_billingOwnerFilter, StringComparison.OrdinalIgnoreCase) ||
+         record.PoiId.Contains(_billingOwnerFilter, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrWhiteSpace(_billingStatusFilter) ||
+         string.Equals(record.Status, _billingStatusFilter, StringComparison.OrdinalIgnoreCase)) &&
+        (string.IsNullOrWhiteSpace(_billingPackageFilter) ||
+         string.Equals(record.PackageName, _billingPackageFilter, StringComparison.OrdinalIgnoreCase)));
+
+    private async Task LoadAfterAuthAsync(SessionUser user)
+    {
+        await ReloadAsync();
+        StateHasChanged();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _loading = true;
+        _repairMessage = string.Empty;
+
+        await LoadHealthAsync();
+        try
+        {
+            _metrics = await Http.GetFromJsonAsync<SystemMetrics>("api/ops/system-metrics") ?? new();
+            _sessions = await Http.GetFromJsonAsync<List<SessionItem>>("api/sessions") ?? new();
+            _auditLogs = await Http.GetFromJsonAsync<List<AuditLogItem>>("api/audit-logs?take=50") ?? new();
+            _billingRecords = await Http.GetFromJsonAsync<List<BillingRecordItem>>("api/billing/admin/records") ?? new();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Ops load failed: {ex}");
+            Snackbar.Add("Không tải được dữ liệu vận hành.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadHealthAsync()
+    {
+        (_liveOk, _liveStatus) = await ReadHealthAsync("api/health/live");
+        (_readyOk, _readyStatus) = await ReadHealthAsync("api/health/ready");
+    }
+
+    private async Task<(bool Ok, string Text)> ReadHealthAsync(string url)
+    {
+        try
+        {
+            var response = await Http.GetAsync(url);
+            return (response.IsSuccessStatusCode, response.IsSuccessStatusCode ? "Healthy" : response.StatusCode.ToString());
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    private async Task RepairAnalyticsAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Đồng bộ lại counter QR/TTS từ event logs?"))
+        {
+            return;
+        }
+
+        await RepairAsync("api/ops/repair/analytics-counters");
+    }
+
+    private async Task RepairTagsAsync()
+    {
+        if (!await JS.InvokeAsync<bool>("confirm", "Backfill tag cho các POI đang thiếu tag?"))
+        {
+            return;
+        }
+
+        await RepairAsync("api/ops/repair/poi-tags");
+    }
+
+    private async Task RepairAsync(string url)
+    {
+        try
+        {
+            var result = await Http.PostAsync(url, null);
+            if (!result.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Repair không thành công.", Severity.Error);
+                return;
+            }
+
+            var payload = await result.Content.ReadFromJsonAsync<RepairResult>();
+            _repairMessage = payload == null
+                ? "Repair hoàn tất."
+                : $"{payload.Message} Matched: {payload.Matched}, Updated: {payload.Updated}.";
+            Snackbar.Add("Repair hoàn tất.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Repair failed: {ex}");
+            Snackbar.Add("Repair lỗi. Kiểm tra API log.", Severity.Error);
+        }
+    }
+
+    private static string ShortId(string value) => string.IsNullOrWhiteSpace(value)
+        ? "-"
+        : value.Length <= 10 ? value : value[..10];
+
+    private static string FormatDate(DateTime? value) => value.HasValue
+        ? value.Value.ToLocalTime().ToString("dd/MM HH:mm:ss")
+        : "-";
+
+    private sealed class SystemMetrics
+    {
+        public DateTime StartedAt { get; set; }
+        public double UptimeSeconds { get; set; }
+        public long RequestCount { get; set; }
+        public double AverageLatencyMs { get; set; }
+        public double P95LatencyMs { get; set; }
+        public long ServerErrorCount { get; set; }
+        public DateTime? LastErrorAt { get; set; }
+    }
+
+    private sealed class SessionItem
+    {
+        public string UserId { get; set; } = string.Empty;
+        public string SessionId { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string AuthProvider { get; set; } = string.Empty;
+        public DateTime? IssuedAt { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+        public DateTime? LastSeenAt { get; set; }
+        public bool IsRevoked { get; set; }
+    }
+
+    private sealed class AuditLogItem
+    {
+        public string ActionType { get; set; } = string.Empty;
+        public string ActorRole { get; set; } = string.Empty;
+        public string TargetType { get; set; } = string.Empty;
+        public string TargetId { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public DateTime? Timestamp { get; set; }
+    }
+
+    private sealed class RepairResult
+    {
+        public int Matched { get; set; }
+        public int Updated { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+
+    private sealed class BillingRecordItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string OwnerId { get; set; } = string.Empty;
+        public string PoiId { get; set; } = string.Empty;
+        public string Provider { get; set; } = string.Empty;
+        public string BillingType { get; set; } = string.Empty;
+        public string PackageName { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+        public string Currency { get; set; } = "VND";
+        public string Status { get; set; } = string.Empty;
+        public DateTime? PaidAt { get; set; }
+        public DateTime? EffectiveTo { get; set; }
+    }
+}

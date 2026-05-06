@@ -4,6 +4,7 @@ using MongoDB.Driver;
 using TourGuide.API.Contracts;
 using TourGuide.API.Infrastructure.Mongo;
 using TourGuide.API.Services.Abstractions;
+using TourGuide.API.Services.Implementations;
 using TourGuide.Domain.Models;
 
 namespace TourGuide.API.Controllers;
@@ -17,17 +18,20 @@ public sealed class OpsController : ControllerBase
     private readonly IAnalyticsService _analyticsService;
     private readonly IPoiService _poiService;
     private readonly MongoCollections _collections;
+    private readonly SystemMetricsCollector _metricsCollector;
 
     public OpsController(
         IAuditService auditService,
         IAnalyticsService analyticsService,
         IPoiService poiService,
-        MongoCollections collections)
+        MongoCollections collections,
+        SystemMetricsCollector metricsCollector)
     {
         _auditService = auditService;
         _analyticsService = analyticsService;
         _poiService = poiService;
         _collections = collections;
+        _metricsCollector = metricsCollector;
     }
 
     [HttpGet("audit-logs")]
@@ -55,6 +59,12 @@ public sealed class OpsController : ControllerBase
             x.LastSeenAt,
             x.IsRevoked,
         }));
+    }
+
+    [HttpGet("ops/system-metrics")]
+    public ActionResult<SystemMetricsResponse> SystemMetrics()
+    {
+        return Ok(_metricsCollector.Snapshot());
     }
 
     [HttpPost("ops/repair/analytics-counters")]

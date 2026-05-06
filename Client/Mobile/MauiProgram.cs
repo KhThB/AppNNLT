@@ -26,7 +26,11 @@ namespace Mobile
                 });
 
             // 2. Đăng ký Service gọi API
+            builder.Services.AddSingleton<OfflineStore>();
             builder.Services.AddSingleton<PoiService>();
+            builder.Services.AddSingleton<NarrationPlaybackService>();
+            builder.Services.AddSingleton<GeofenceMonitorService>();
+            builder.Services.AddSingleton<ITrackingService, TrackingService>();
 
             // 3. Đăng ký các Trang (Views) và Bộ não (ViewModels)
             // Trang chủ

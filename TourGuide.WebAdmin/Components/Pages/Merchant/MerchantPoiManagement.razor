@@ -82,6 +82,31 @@
                         <MudTextField @bind-Value="_selected.Address" Label="Địa chỉ" Variant="Variant.Outlined" Class="mb-4" />
                         <MudTextField @bind-Value="_selected.TagText" Label="Tag quán" HelperText="Nhập cách nhau bằng dấu phẩy, ví dụ: ốc đêm, ăn vặt, trà sữa" Variant="Variant.Outlined" Class="mb-4" />
                         <MudTextField T="string" Value="_selected.SourceDescription" ValueChanged="OnSelectedSourceDescriptionChangedAsync" Label="Nội dung nguồn" Variant="Variant.Outlined" Lines="6" Immediate="true" />
+                        <MudPaper Class="pa-3 mb-4" Outlined="true">
+                            <div class="d-flex justify-space-between align-center mb-2">
+                                <div>
+                                    <MudText Typo="Typo.subtitle2">Ảnh quán</MudText>
+                                    <MudText Typo="Typo.caption">Dán URL ảnh hoặc chọn file để upload lên storage.</MudText>
+                                </div>
+                                <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small" Disabled="@string.IsNullOrWhiteSpace(_selected.ImageUrl)" OnClick="ClearSelectedImage">
+                                    Xóa ảnh
+                                </MudButton>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(_selected.ImageUrl))
+                            {
+                                <img src="@_selected.ImageUrl" alt="@_selected.Name" style="width:100%; max-height:220px; object-fit:cover; border-radius:12px; border:1px solid #fed7aa; margin-bottom:12px;" />
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">POI này chưa có ảnh đại diện.</MudAlert>
+                            }
+                            <MudTextField @bind-Value="_selected.ImageUrl" Label="URL ảnh" Variant="Variant.Outlined" Class="mb-3" Immediate="true" />
+                            <InputFile OnChange="UploadSelectedImageAsync" accept="image/*" />
+                            @if (_imageUploading)
+                            {
+                                <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mt-3" />
+                            }
+                        </MudPaper>
                         <MudPaper Class="pa-3 my-4" Outlined="true">
                             <div class="d-flex justify-space-between align-center mb-2">
                                 <div>
@@ -177,6 +202,7 @@
     private bool _loading = true;
     private bool _locationMapPending;
     private bool _translationLoading;
+    private bool _imageUploading;
     private string _translationMessage = string.Empty;
     private CancellationTokenSource? _translationDebounceCts;
     private string _ownerId = "me";
@@ -320,6 +346,66 @@
         }
 
         Snackbar.Add("Không thể lưu POI.", Severity.Error);
+    }
+
+    private async Task UploadSelectedImageAsync(InputFileChangeEventArgs args)
+    {
+        if (_selected == null)
+        {
+            return;
+        }
+
+        var file = args.File;
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("Vui lòng chọn file ảnh hợp lệ.", Severity.Warning);
+            return;
+        }
+
+        _imageUploading = true;
+        try
+        {
+            using var form = new MultipartFormDataContent();
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            using var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            form.Add(fileContent, "file", file.Name);
+
+            var response = await Http.PostAsync("api/poi/upload-image", form);
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Upload ảnh thất bại. Có thể storage chưa được cấu hình, bạn vẫn có thể dán URL ảnh.", Severity.Error);
+                return;
+            }
+
+            var upload = await response.Content.ReadFromJsonAsync<ImageUploadResponse>();
+            if (upload == null || string.IsNullOrWhiteSpace(upload.ImageUrl))
+            {
+                Snackbar.Add("Upload ảnh không trả về URL hợp lệ.", Severity.Error);
+                return;
+            }
+
+            _selected.ImageUrl = upload.ImageUrl;
+            Snackbar.Add("Đã upload ảnh, bấm Lưu để cập nhật POI.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Upload ảnh thất bại: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _imageUploading = false;
+        }
+    }
+
+    private void ClearSelectedImage()
+    {
+        if (_selected == null)
+        {
+            return;
+        }
+
+        _selected.ImageUrl = string.Empty;
     }
 
     private Task OnSelectedSourceDescriptionChangedAsync(string value)
@@ -644,5 +730,10 @@
     private sealed class PremiumCheckoutResponse
     {
         public string CheckoutUrl { get; set; } = string.Empty;
+    }
+
+    private sealed class ImageUploadResponse
+    {
+        public string ImageUrl { get; set; } = string.Empty;
     }
 }
